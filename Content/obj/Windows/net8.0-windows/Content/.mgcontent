@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SourceFileCollection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Profile>Reach</Profile>
+  <Platform>Windows</Platform>
+  <Config />
+  <SourceFiles>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/grass.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/grass2.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick2.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick3.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick4.jpg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat.fbx</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_texture.jpeg</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_new.fbx</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_texture_new.png</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_walk.fbx</File>
+    <File>D:/devgitlab/CallOfCatLady/Content/Models/contortionist_texture.png</File>
+  </SourceFiles>
+  <DestFiles>
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+  </DestFiles>
+</SourceFileCollection>
