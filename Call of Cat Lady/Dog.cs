@@ -56,11 +56,15 @@ namespace Call_of_Cat_Lady
             Position = ClampToWorld(Position);
         }
 
-        public void StartVaporize()
+        public bool StartVaporize()
         {
+            if (IsVaporizing)
+                return false;
+
             IsVaporizing = true;
             VaporizeTimer = 0f;
             Velocity = Vector3.Zero;
+            return true;
         }
 
         public bool ShouldRemove()

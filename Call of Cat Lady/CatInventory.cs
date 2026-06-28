@@ -88,13 +88,30 @@ namespace Call_of_Cat_Lady
         private void ShootCat(Camera camera, Vector3 playerPosition, List<Cat> cats)
         {
             Cat follower = null;
+            int bestSlotIndex = int.MinValue;
 
             foreach (var cat in cats)
             {
-                if (cat.State == CatState.FollowingPlayer)
+                if (cat.State != CatState.FollowingPlayer || cat.FollowSlotIndex < 0)
+                    continue;
+
+                int slotIndex = cat.FollowSlotIndex;
+                if (follower == null || slotIndex > bestSlotIndex)
                 {
                     follower = cat;
-                    break;
+                    bestSlotIndex = slotIndex;
+                }
+            }
+
+            if (follower == null)
+            {
+                foreach (var cat in cats)
+                {
+                    if (cat.State == CatState.FollowingPlayer)
+                    {
+                        follower = cat;
+                        break;
+                    }
                 }
             }
 
@@ -107,7 +124,13 @@ namespace Call_of_Cat_Lady
                 throwDirection = Vector3.Forward;
             }
 
-            Vector3 spawnPosition = playerPosition + camera.GetFlatForwardDirection() * 2.1f + Vector3.Up * 1.15f;
+            Vector3 throwForward = camera.GetFlatForwardDirection();
+            if (throwForward.LengthSquared() < 0.0001f)
+            {
+                throwForward = Vector3.Forward;
+            }
+
+            Vector3 spawnPosition = playerPosition + throwForward * 2.2f + Vector3.Up * 1.45f;
             follower.Throw(spawnPosition, throwDirection, ShootPower);
         }
     }

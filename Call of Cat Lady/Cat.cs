@@ -26,9 +26,10 @@ namespace Call_of_Cat_Lady
         private const float RecoverDuration = 0.65f;
         private const float ThrowGravity = -9.8f;
         private const float ThrowDrag = 0.985f;
-        private const float FollowSpeed = 4.2f;
+        private const float FollowSpeed = 8.5f;
         private const float FollowTurnSpeed = 10f;
         private const float WanderTurnSpeed = 4f;
+        private const float FollowSnapDistance = 0.05f;
 
         private readonly Random random;
         private readonly Vector3 spawnAnchor;
@@ -108,8 +109,9 @@ namespace Call_of_Cat_Lady
                 normalizedDirection.Normalize();
             }
 
-            Position = ClampToGround(origin + Vector3.Up * 0.6f);
+            Position = new Vector3(origin.X, Math.Max(origin.Y, GroundY + 0.25f), origin.Z);
             Velocity = normalizedDirection * power + new Vector3(0f, power * 0.25f, 0f);
+            RotationY = (float)Math.Atan2(normalizedDirection.X, normalizedDirection.Z);
             RotationX = 0f;
             RotationZ = 0f;
         }
@@ -129,6 +131,7 @@ namespace Call_of_Cat_Lady
         {
             State = CatState.Consumed;
             Velocity = Vector3.Zero;
+            FollowSlotIndex = -1;
         }
 
         public void Update(GameTime gameTime, Vector3 playerPosition, Vector3 followTarget)
@@ -155,7 +158,10 @@ namespace Call_of_Cat_Lady
                     break;
             }
 
-            Position = ClampToGround(Position);
+            if (State != CatState.Thrown)
+            {
+                Position = ClampToGround(Position);
+            }
             Vector3 frameMovement = Position - previousPosition;
             UpdateFacingAndLegs(deltaTime, frameMovement);
             lastFramePosition = Position;
@@ -210,20 +216,25 @@ namespace Call_of_Cat_Lady
             toTarget.Y = 0f;
             float distance = toTarget.Length();
 
+            if (distance <= FollowSnapDistance)
+            {
+                Position = new Vector3(followTarget.X, GroundY, followTarget.Z);
+                Velocity = Vector3.Zero;
+                return;
+            }
+
             if (distance > 0.001f)
             {
-                toTarget.Normalize();
-                Vector3 desiredVelocity = toTarget * FollowSpeed;
-                Velocity = Vector3.Lerp(Velocity, desiredVelocity, MathHelper.Clamp(deltaTime * 8f, 0f, 1f));
-                if (Velocity.LengthSquared() > FollowSpeed * FollowSpeed)
-                {
-                    Velocity = Vector3.Normalize(Velocity) * FollowSpeed;
-                }
-                Position += Velocity * deltaTime;
+                Vector3 direction = toTarget / distance;
+                float maxStep = FollowSpeed * deltaTime;
+                float step = Math.Min(distance, maxStep);
+
+                Position += direction * step;
+                Velocity = direction * (step / Math.Max(deltaTime, 0.0001f));
             }
             else
             {
-                Velocity = Vector3.Lerp(Velocity, Vector3.Zero, MathHelper.Clamp(deltaTime * 8f, 0f, 1f));
+                Velocity = Vector3.Zero;
             }
 
             Position = new Vector3(Position.X, GroundY, Position.Z);

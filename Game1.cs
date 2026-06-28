@@ -199,6 +199,7 @@ namespace Call_of_Cat_Lady
 
             AssignFollowSlots();
             UpdateCats(gameTime);
+            AssignFollowSlots();
             UpdateDogs(gameTime);
             CheckCatDogCollisions();
             RemoveConsumedCats();
@@ -211,14 +212,29 @@ namespace Call_of_Cat_Lady
 
         private void AssignFollowSlots()
         {
-            int slotIndex = 0;
+            HashSet<int> occupiedSlots = new HashSet<int>();
+
             foreach (var cat in _cats)
             {
-                if (cat.State == CatState.FollowingPlayer)
+                if (cat.State == CatState.FollowingPlayer && cat.FollowSlotIndex >= 0)
                 {
-                    cat.SetFollowSlot(slotIndex);
+                    occupiedSlots.Add(cat.FollowSlotIndex);
+                }
+            }
+
+            foreach (var cat in _cats)
+            {
+                if (cat.State != CatState.FollowingPlayer || cat.FollowSlotIndex >= 0)
+                    continue;
+
+                int slotIndex = 0;
+                while (occupiedSlots.Contains(slotIndex))
+                {
                     slotIndex++;
                 }
+
+                cat.SetFollowSlot(slotIndex);
+                occupiedSlots.Add(slotIndex);
             }
         }
 
@@ -270,9 +286,11 @@ namespace Call_of_Cat_Lady
                     float distance = Vector3.Distance(cat.Position, dog.Position);
                     if (distance <= CatThrowRange)
                     {
-                        dog.StartVaporize();
+                        if (dog.StartVaporize())
+                        {
+                            _score += 100;
+                        }
                         cat.Consume();
-                        _score += 100;
                         break;
                     }
                 }
@@ -326,7 +344,7 @@ namespace Call_of_Cat_Lady
             if (_hudFont != null)
             {
                 var counts = GetCatStateCounts();
-                int vaporizingDogs = GetVaporizingDogCount();
+                var dogCounts = GetDogStateCounts();
 
                 int x = 10;
                 int y = 10;
@@ -335,10 +353,10 @@ namespace Call_of_Cat_Lady
                 DrawHudLine($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1}", x, y, Color.White); y += lineHeight;
                 DrawHudLine("Camera mode: Third-person follow", x, y, Color.LightBlue); y += lineHeight;
                 DrawHudLine($"Cats - Wandering: {counts.Wandering} | Following: {counts.Following} | Thrown: {counts.Thrown} | Recovering: {counts.Recovering}", x, y, Color.White); y += lineHeight;
-                DrawHudLine($"Dogs: {_dogs.Count} | Vaporizing: {vaporizingDogs}", x, y, Color.Orange); y += lineHeight;
-                DrawHudLine($"Followers: {_catInventory.CatCount} | Score: {_score}", x, y, Color.Yellow); y += lineHeight;
-                string playerRenderer = _player.HasModel ? "Model" : "Fallback";
-                DrawHudLine($"Player renderer: {playerRenderer}", x, y, Color.LightGreen); y += lineHeight;
+                DrawHudLine($"Dogs - Active: {dogCounts.Active} | Derezzing: {dogCounts.Derezzing}", x, y, Color.Orange); y += lineHeight;
+                DrawHudLine($"Inventory/Followers: {_catInventory.CatCount} | Score: {_score}", x, y, Color.Yellow); y += lineHeight;
+                string playerRenderer = _player.HasModel ? "Real" : "Fallback";
+                DrawHudLine($"Player model mode: {playerRenderer}", x, y, Color.LightGreen); y += lineHeight;
                 DrawHudLine($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", x, y, Color.White); y += lineHeight;
 
                 DrawHudLine("WASD move | Mouse aim | Left click throw | Right click/E pickup | ESC quit",
@@ -397,16 +415,20 @@ namespace Call_of_Cat_Lady
             return (wandering, following, thrown, recovering);
         }
 
-        private int GetVaporizingDogCount()
+        private (int Active, int Derezzing) GetDogStateCounts()
         {
-            int count = 0;
+            int active = 0;
+            int derezzing = 0;
+
             foreach (var dog in _dogs)
             {
                 if (dog.IsVaporizing)
-                    count++;
+                    derezzing++;
+                else
+                    active++;
             }
 
-            return count;
+            return (active, derezzing);
         }
 
         private void ClampPlayerToWorld()
@@ -438,8 +460,8 @@ namespace Call_of_Cat_Lady
             int row = Math.Max(0, slotIndex) / 3;
             int column = Math.Max(0, slotIndex) % 3;
 
-            float backOffset = 1.75f + row * 1.05f;
-            float sideOffset = (column - 1f) * 0.9f;
+            float backOffset = 2.15f + row * 1.25f;
+            float sideOffset = (column - 1f) * 1.35f;
 
             Vector3 target = playerPosition - forward * backOffset + right * sideOffset;
             target.Y = GroundY;
