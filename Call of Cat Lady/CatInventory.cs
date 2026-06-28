@@ -107,7 +107,7 @@ namespace Call_of_Cat_Lady
                 throwDirection = Vector3.Forward;
             }
 
-            Vector3 spawnPosition = playerPosition + camera.GetFlatForwardDirection() * 1.7f + Vector3.Up * 1.0f;
+            Vector3 spawnPosition = playerPosition + camera.GetFlatForwardDirection() * 2.1f + Vector3.Up * 1.15f;
             follower.Throw(spawnPosition, throwDirection, ShootPower);
         }
     }

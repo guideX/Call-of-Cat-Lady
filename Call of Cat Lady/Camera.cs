@@ -19,8 +19,8 @@ namespace Call_of_Cat_Lady
         private float yaw = -MathHelper.PiOver2;
         private float pitch = -0.15f;
         private readonly float mouseSensitivity = 0.003f;
-        private readonly float followDistance = 7.0f;
-        private readonly float followHeight = 2.6f;
+        private readonly float followDistance = 9.0f;
+        private readonly float followHeight = 3.5f;
         private Vector3 forwardDirection = Vector3.Forward;
         private Vector3 flatForwardDirection = Vector3.Forward;
 

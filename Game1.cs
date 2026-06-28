@@ -15,6 +15,8 @@ namespace Call_of_Cat_Lady
         private const float WorldMaxZ = 185f;
         private const float PlayerHeadHeight = 1.35f;
         private const float CatThrowRange = 1.5f;
+        private const int InitialCatCount = 24;
+        private const int InitialDogCount = 6;
 
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -49,7 +51,7 @@ namespace Call_of_Cat_Lady
 
         protected override void Initialize()
         {
-            _camera = new Camera(GraphicsDevice, _playerStartPosition + new Vector3(0f, 3f, -7f));
+            _camera = new Camera(GraphicsDevice, _playerStartPosition + new Vector3(0f, 4f, -10f));
             _environment = new Environment(GraphicsDevice);
             _catInventory = new CatInventory();
             _catRenderer = new CatRenderer(GraphicsDevice);
@@ -78,16 +80,16 @@ namespace Call_of_Cat_Lady
                 new Vector3(-72f, GroundY, 44f)
             };
 
-            int[] counts = { 7, 7, 6, 6 };
+            int[] counts = { 6, 6, 6, 6 };
             for (int anchorIndex = 0; anchorIndex < anchors.Length; anchorIndex++)
             {
                 Vector3 anchor = anchors[anchorIndex];
                 for (int i = 0; i < counts[anchorIndex]; i++)
                 {
                     Vector3 offset = new Vector3(
-                        (float)(random.NextDouble() * 2.0 - 1.0) * 6f,
+                        (float)(random.NextDouble() * 2.0 - 1.0) * 4f,
                         0f,
-                        (float)(random.NextDouble() * 2.0 - 1.0) * 6f);
+                        (float)(random.NextDouble() * 2.0 - 1.0) * 4f);
 
                     _cats.Add(new Cat(ClampToWorld(anchor + offset), random));
                 }
@@ -111,9 +113,9 @@ namespace Call_of_Cat_Lady
             foreach (Vector3 anchor in anchors)
             {
                 Vector3 offset = new Vector3(
-                    (float)(random.NextDouble() * 2.0 - 1.0) * 5f,
+                    (float)(random.NextDouble() * 2.0 - 1.0) * 4f,
                     0f,
-                    (float)(random.NextDouble() * 2.0 - 1.0) * 5f);
+                    (float)(random.NextDouble() * 2.0 - 1.0) * 4f);
                 _dogs.Add(new Dog(ClampToWorld(anchor + offset), random));
             }
         }
@@ -335,6 +337,8 @@ namespace Call_of_Cat_Lady
                 DrawHudLine($"Cats - Wandering: {counts.Wandering} | Following: {counts.Following} | Thrown: {counts.Thrown} | Recovering: {counts.Recovering}", x, y, Color.White); y += lineHeight;
                 DrawHudLine($"Dogs: {_dogs.Count} | Vaporizing: {vaporizingDogs}", x, y, Color.Orange); y += lineHeight;
                 DrawHudLine($"Followers: {_catInventory.CatCount} | Score: {_score}", x, y, Color.Yellow); y += lineHeight;
+                string playerRenderer = _player.HasModel ? "Model" : "Fallback";
+                DrawHudLine($"Player renderer: {playerRenderer}", x, y, Color.LightGreen); y += lineHeight;
                 DrawHudLine($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", x, y, Color.White); y += lineHeight;
 
                 DrawHudLine("WASD move | Mouse aim | Left click throw | Right click/E pickup | ESC quit",
@@ -431,11 +435,11 @@ namespace Call_of_Cat_Lady
 
         private Vector3 GetFollowTarget(Vector3 playerPosition, Vector3 forward, Vector3 right, int slotIndex)
         {
-            int row = Math.Max(0, slotIndex) / 4;
-            int column = Math.Max(0, slotIndex) % 4;
+            int row = Math.Max(0, slotIndex) / 3;
+            int column = Math.Max(0, slotIndex) % 3;
 
-            float backOffset = 1.6f + row * 1.15f;
-            float sideOffset = (column - 1.5f) * 0.95f;
+            float backOffset = 1.75f + row * 1.05f;
+            float sideOffset = (column - 1f) * 0.9f;
 
             Vector3 target = playerPosition - forward * backOffset + right * sideOffset;
             target.Y = GroundY;

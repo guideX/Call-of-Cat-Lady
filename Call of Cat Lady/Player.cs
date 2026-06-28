@@ -19,6 +19,7 @@ namespace Call_of_Cat_Lady
         public Vector3 Position { get; set; }
         public float RotationY { get; private set; }
         public Model Model { get; private set; }
+        public bool HasModel => Model != null;
 
         public Player(Model model, Vector3 startPosition, GraphicsDevice graphicsDevice)
         {
@@ -131,6 +132,7 @@ namespace Call_of_Cat_Lady
             Color markerColor = ApplyLighting(new Color(255, 200, 60), ambientLight);
 
             DrawBox(world, new Vector3(0f, 1.1f, 0f), new Vector3(0.7f, 1.2f, 0.45f), dressColor);
+            DrawBox(world, new Vector3(0f, 1.55f, 0f), new Vector3(0.85f, 0.16f, 0.5f), coatColor);
             DrawBox(world, new Vector3(0f, 2.0f, 0f), new Vector3(0.45f, 0.45f, 0.45f), skinColor);
             DrawBox(world, new Vector3(0f, 0.2f, 0.0f), new Vector3(0.8f, 0.3f, 0.5f), coatColor);
 

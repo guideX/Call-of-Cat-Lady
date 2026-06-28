@@ -26,9 +26,6 @@ namespace Call_of_Cat_Lady
         public void DrawDog(GraphicsDevice graphicsDevice, Camera camera, Dog dog, Color ambientLight)
         {
             float distanceToCamera = Vector3.Distance(camera.Position, dog.Position);
-            
-            if (distanceToCamera > LOD_LOW_DISTANCE)
-                return;
 
             basicEffect.View = camera.View;
             basicEffect.Projection = camera.Projection;
@@ -36,26 +33,28 @@ namespace Call_of_Cat_Lady
             Matrix world = Matrix.CreateScale(dog.Scale) *
                           Matrix.CreateRotationY(dog.RotationY) *
                           Matrix.CreateTranslation(dog.Position);
-            
+
             basicEffect.World = world;
 
             Color mainColor = ApplyLighting(GetColorForBreed(dog.Breed), ambientLight);
-            
+
             // Vaporization effect
             if (dog.IsVaporizing)
             {
                 DrawVaporizingDog(graphicsDevice, mainColor, dog.VaporizeTimer);
+                return;
             }
+
+            if (distanceToCamera > LOD_LOW_DISTANCE)
+                return;
+
+            // LOD based on distance
+            if (distanceToCamera < LOD_HIGH_DISTANCE)
+                DrawDogHighDetail(graphicsDevice, mainColor);
+            else if (distanceToCamera < LOD_MEDIUM_DISTANCE)
+                DrawDogMediumDetail(graphicsDevice, mainColor);
             else
-            {
-                // LOD based on distance
-                if (distanceToCamera < LOD_HIGH_DISTANCE)
-                    DrawDogHighDetail(graphicsDevice, mainColor);
-                else if (distanceToCamera < LOD_MEDIUM_DISTANCE)
-                    DrawDogMediumDetail(graphicsDevice, mainColor);
-                else
-                    DrawDogLowDetail(graphicsDevice, mainColor);
-            }
+                DrawDogLowDetail(graphicsDevice, mainColor);
         }
 
         private void DrawVaporizingDog(GraphicsDevice graphicsDevice, Color mainColor, float timer)

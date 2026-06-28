@@ -88,27 +88,9 @@ namespace Call_of_Cat_Lady
                 modelGroundOffset = (minY == float.MaxValue) ? 0f : minY;
                 Console.WriteLine($"  Model extents: X=[{minX:F1},{maxX:F1}] Y=[{minY:F1},{maxY:F1}] Z=[{minZ:F1},{maxZ:F1}]");
                 Console.WriteLine($"↕ Model ground offset (minY) = {modelGroundOffset:F3}");
-
-                // Try to extract animation from model
-                try
-                {
-                    walkAnimation = AnimationExtractor.ExtractAnimation(model, "Walk");
-                    if (walkAnimation != null && walkAnimation.Duration > TimeSpan.Zero)
-                    {
-                        supportsAnimation = true;
-                        Console.WriteLine($"✅ Animation detected! Duration: {walkAnimation.Duration.TotalSeconds:F2}s");
-                    }
-                    else
-                    {
-                        Console.WriteLine("⚠️  No animation found in model - using static model");
-                        supportsAnimation = false;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"⚠️  Could not load animation: {ex.Message}");
-                    supportsAnimation = false;
-                }
+                supportsAnimation = false;
+                walkAnimation = null;
+                Console.WriteLine("  Rendering loaded cat model statically for stability.");
             }
             else
             {
@@ -118,24 +100,7 @@ namespace Call_of_Cat_Lady
 
         public void CleanupAnimationPlayers(List<Cat> activeCats)
         {
-            if (!useLoadedModel || animationPlayers.Count == 0)
-                return;
-
-            HashSet<Cat> activeSet = new HashSet<Cat>(activeCats);
-            List<Cat> staleCats = new List<Cat>();
-
-            foreach (var entry in animationPlayers)
-            {
-                if (!activeSet.Contains(entry.Key))
-                {
-                    staleCats.Add(entry.Key);
-                }
-            }
-
-            foreach (var cat in staleCats)
-            {
-                animationPlayers.Remove(cat);
-            }
+            // Animation is intentionally disabled for stability.
         }
         
         public void DrawCat(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)
@@ -195,66 +160,9 @@ namespace Call_of_Cat_Lady
         private void DrawMonoGameModel(GraphicsDevice graphicsDevice, Camera camera, Matrix world, 
             Cat cat, Color ambientLight)
         {
-            // Get or create animation player for this cat
-            AnimationPlayer player = null;
-            if (supportsAnimation && walkAnimation != null)
-            {
-                if (!animationPlayers.ContainsKey(cat))
-                {
-                    player = new AnimationPlayer(catModel.Bones.Count);
-                    player.StartClip(walkAnimation, 1.0f);
-                    animationPlayers[cat] = player;
-                }
-                else
-                {
-                    player = animationPlayers[cat];
-                }
-                
-                // Update animation based on cat movement
-                // If cat is moving, play animation faster based on speed
-                if (cat.State == CatState.Wandering || cat.State == CatState.FollowingPlayer || cat.State == CatState.Recovering)
-                {
-                    // Calculate movement speed
-                    float movementSpeed = CalculateCatSpeed(cat);
-                    
-                    if (movementSpeed > 0.1f)
-                    {
-                        // Cat is moving - play walk animation
-                        if (!player.IsPlaying)
-                        {
-                            player.StartClip(walkAnimation, movementSpeed);
-                        }
-                        
-                        // Update animation with time and speed
-                        player.Update(new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(1.0f / 60.0f)), 
-                                    true, // loop
-                                    world);
-                    }
-                    else
-                    {
-                        // Cat is standing still - stop animation or use idle pose
-                        // Keep animation at frame 0 (standing pose)
-                        player.StopClip();
-                    }
-                }
-            }
-            
             // Get bone transforms
             Matrix[] bones = new Matrix[catModel.Bones.Count];
-            if (player != null && supportsAnimation && player.IsPlaying)
-            {
-                // Use animated bone transforms
-                var animBones = player.GetBoneTransforms();
-                for (int i = 0; i < Math.Min(bones.Length, animBones.Length); i++)
-                {
-                    bones[i] = animBones[i];
-                }
-            }
-            else
-            {
-                // Use default bone transforms
-                catModel.CopyAbsoluteBoneTransformsTo(bones);
-            }
+            catModel.CopyAbsoluteBoneTransformsTo(bones);
             
             // Draw each mesh in the model
             foreach (ModelMesh mesh in catModel.Meshes)
