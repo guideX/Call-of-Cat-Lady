@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PipelineBuildEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <SourceFile>D:/devgitlab/CallOfCatLady/Content/Images/brick.jpg</SourceFile>
+  <SourceFile>D:/dev/CallOfCatLady/Content/Images/brick.jpg</SourceFile>
   <SourceTime>2025-11-23T14:13:41.034693-08:00</SourceTime>
-  <DestFile>D:/devgitlab/CallOfCatLady/Content/bin/Windows/Content/Images/brick.xnb</DestFile>
-  <DestTime>2026-04-04T22:21:38.239409-07:00</DestTime>
+  <DestFile>D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick.xnb</DestFile>
+  <DestTime>2026-06-28T08:32:06.5336953-07:00</DestTime>
   <Importer>TextureImporter</Importer>
   <ImporterTime>2025-06-02T03:31:02-07:00</ImporterTime>
   <Processor>TextureProcessor</Processor>

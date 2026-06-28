@@ -4,18 +4,18 @@
   <Platform>Windows</Platform>
   <Config />
   <SourceFiles>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/grass.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/grass2.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick2.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick3.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Images/brick4.jpg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat.fbx</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_texture.jpeg</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_new.fbx</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_texture_new.png</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/cat_walk.fbx</File>
-    <File>D:/devgitlab/CallOfCatLady/Content/Models/contortionist_texture.png</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/grass.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/grass2.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/brick.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/brick2.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/brick3.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Images/brick4.jpg</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/cat.fbx</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/cat_texture.jpeg</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/cat_new.fbx</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/cat_texture_new.png</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/cat_walk.fbx</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/contortionist_texture.png</File>
   </SourceFiles>
   <DestFiles>
     <File xsi:nil="true" />
