@@ -1,15 +1,16 @@
 # Call of Cat Lady - 3D First Person Cat Shooter
 
 ## Overview
-Welcome to "Call of Cat Lady" - a unique 3D first-person game where you play as a cat-loving lady collecting and shooting cats in a neighborhood!
+Welcome to "Call of Cat Lady" - a simple 3D arcade round where you play as a cat-loving lady collecting cats, throwing them at dogs, and surviving the day for as long as you can.
 
 ## Game Features
 ? **First-Person Camera** - WASD movement with mouse look
 ? **3D Neighborhood Environment** - Houses, streets, and grass
-? **Roaming Cats** - 20 cats wandering around the neighborhood
-? **Cat Collection System** - Walk near cats to pick them up
-? **Cat Shooting Mechanics** - Launch collected cats with left mouse button
-? **Cat Inventory** - Track how many cats you have collected
+? **Fast Day Round** - About 5 minutes from start to day over
+? **Roaming Cats** - Cats wander the neighborhood and can follow behind you
+? **Cat Carry Limit** - Up to 8 cats at a time
+? **Cat Throwing Mechanics** - Launch collected cats with left mouse button
+? **Dog Pressure** - Dogs roam and will drift toward the player when nearby
 ? **Physics** - Cats fly through the air with gravity
 ? **Crosshair** - Aim your cat shots!
 
@@ -20,16 +21,18 @@ Welcome to "Call of Cat Lady" - a unique 3D first-person game where you play as 
 - **Left Mouse Button** - Shoot a cat (if you have any collected)
 - **Right Mouse Button / E** - Pick up a nearby cat
 - **F9** - Debug/test: place a dog in front of the player for manual hit checks
+- **R** - Restart the current round
 - **ESC** - Exit game
 
 ## How to Play
 1. Run the game
-2. Use WASD to walk around the neighborhood
-3. Walk close to orange cats to automatically collect them
-4. Your cat inventory will increase
-5. Aim with your mouse and click left mouse button to shoot cats
+2. Use WASD to walk around the neighborhood and mouse look to aim
+3. Walk close to orange cats to collect them
+4. Your carry count should stay capped at 8 cats
+5. Aim with your mouse and click left mouse button to throw cats at dogs
 6. If you need a fast verification target, press `F9` to place a dog in front of you
-7. Watch thrown cats, dog derez, and score changes in the HUD
+7. Let the day timer run down to confirm the end-of-day overlay appears
+8. Press `R` to restart and confirm the round resets cleanly
 
 ## About Your 3D Models
 
@@ -131,10 +134,14 @@ MonoGame best supports:
 - Cats spawn randomly around the neighborhood between X: -30 to 30, Z: -50 to 50
 
 ### Manual verification checklist
-1. Collect 3 to 8 cats and make sure the follower pack stays behind or around the player
-2. Throw a cat and confirm the projectile trail makes it easy to track
-3. Press `F9` to reposition a dog in front of the player if you need a hit test target
-4. Hit the dog and verify the derez flash, one-time score increment, and HUD counts
+1. Move around with WASD and verify the camera stays stable.
+2. Collect cats up to the 8-cat limit and confirm the HUD reads `Cats: current / max`.
+3. Try to collect one more cat and verify it does not break follower slots.
+4. Throw a cat and confirm the trail is visible and readable.
+5. Press `F9` to place a debug dog in front of the player for a repeatable hit test.
+6. Throw a cat into the dog and verify the derez flash, one-shot score update, and dogs-derezzed count.
+7. Wait for the 5-minute day to finish and confirm the end-of-day overlay appears with final score, dogs derezzed, cats collected, and cats thrown.
+8. Press `R` and confirm a fresh round starts cleanly.
 
 ### Camera not moving?
 - Make sure the game window has focus

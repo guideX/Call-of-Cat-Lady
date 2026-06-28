@@ -19,6 +19,9 @@ namespace Call_of_Cat_Lady
         private const float StatusMessageDuration = 1.25f;
         private const float FollowerOccludedOpacity = 0.35f;
         private const float FollowerOcclusionRadius = 1.15f;
+        private const int MaxCarryCats = 8;
+        private const int CatCollectScoreBonus = 10;
+        private const int DogDerezScore = 100;
         private const int InitialCatCount = 24;
         private const int InitialDogCount = 6;
 
@@ -31,12 +34,17 @@ namespace Call_of_Cat_Lady
         private CatInventory _catInventory;
         private CatRenderer _catRenderer;
         private Player _player;
+        private Model _playerModel;
         private DayNightCycle _dayNightCycle;
         private DogRenderer _dogRenderer;
 
         private List<Cat> _cats;
         private List<Dog> _dogs;
         private int _score;
+        private int _catsCollected;
+        private int _catsThrown;
+        private int _dogsDerezzed;
+        private bool _roundComplete;
         private KeyboardState _previousKeyboardState;
         private string _statusMessage;
         private float _statusMessageTimer;
@@ -60,7 +68,7 @@ namespace Call_of_Cat_Lady
         {
             _camera = new Camera(GraphicsDevice, _playerStartPosition + new Vector3(0f, 4f, -10f));
             _environment = new Environment(GraphicsDevice);
-            _catInventory = new CatInventory();
+            _catInventory = new CatInventory(MaxCarryCats);
             _catRenderer = new CatRenderer(GraphicsDevice);
             _dayNightCycle = new DayNightCycle(GraphicsDevice);
             _dogRenderer = new DogRenderer(GraphicsDevice);
@@ -68,6 +76,12 @@ namespace Call_of_Cat_Lady
             _cats = new List<Cat>();
             _dogs = new List<Dog>();
             _score = 0;
+            _catsCollected = 0;
+            _catsThrown = 0;
+            _dogsDerezzed = 0;
+            _roundComplete = false;
+            _statusMessage = null;
+            _statusMessageTimer = 0f;
 
             SpawnCats();
             SpawnDogs();
@@ -167,7 +181,8 @@ namespace Call_of_Cat_Lady
                 Console.WriteLine("Using fallback player renderer instead.");
             }
 
-            _player = new Player(playerModel, _playerStartPosition, GraphicsDevice);
+            _playerModel = playerModel;
+            _player = new Player(_playerModel, _playerStartPosition, GraphicsDevice);
 
             Texture2D grassTexture = LoadTextureOrFallback("Images/grass", CreateFallbackGrassTexture(64, 64));
             Texture2D grass2Texture = LoadTextureOrFallback("Images/grass2", null);
@@ -197,15 +212,18 @@ namespace Call_of_Cat_Lady
             if (keyState.IsKeyDown(Keys.Escape))
                 Exit();
 
+            if (keyState.IsKeyDown(Keys.R) && _previousKeyboardState.IsKeyUp(Keys.R))
+            {
+                RestartRound();
+                _previousKeyboardState = keyState;
+                base.Update(gameTime);
+                return;
+            }
+
             if (keyState.IsKeyDown(Keys.F9) && _previousKeyboardState.IsKeyUp(Keys.F9))
             {
                 PlaceDebugDogInFrontOfPlayer();
             }
-
-            _camera.UpdateLook(gameTime, GraphicsDevice);
-            _player.Update(gameTime, _camera);
-            ClampPlayerToWorld();
-            _camera.UpdateFollow(_player.Position + Vector3.Up * PlayerHeadHeight);
 
             if (_statusMessageTimer > 0f)
             {
@@ -217,17 +235,33 @@ namespace Call_of_Cat_Lady
                 }
             }
 
-            _dayNightCycle.Update(gameTime);
-            _catInventory.Update(gameTime, _camera, _player, _cats);
+            if (!_roundComplete)
+            {
+                _camera.UpdateLook(gameTime, GraphicsDevice);
+                _player.Update(gameTime, _camera);
+                ClampPlayerToWorld();
+                _camera.UpdateFollow(_player.Position + Vector3.Up * PlayerHeadHeight);
 
-            AssignFollowSlots();
-            UpdateCats(gameTime);
-            AssignFollowSlots();
-            UpdateDogs(gameTime);
-            CheckCatDogCollisions();
-            RemoveConsumedCats();
+                _dayNightCycle.Update(gameTime);
+                if (_dayNightCycle.IsComplete)
+                {
+                    EndRound();
+                }
+                else
+                {
+                    CatInventoryUpdateResult inventoryResult = _catInventory.Update(gameTime, _camera, _player, _cats);
+                    HandleInventoryResult(inventoryResult);
+
+                    AssignFollowSlots();
+                    UpdateCats(gameTime);
+                    AssignFollowSlots();
+                    UpdateDogs(gameTime);
+                    CheckCatDogCollisions();
+                    RemoveConsumedCats();
+                }
+            }
+
             _catRenderer.CleanupAnimationPlayers(_cats);
-
             _catInventory.RefreshCount(_cats);
             _previousKeyboardState = keyState;
 
@@ -285,7 +319,7 @@ namespace Call_of_Cat_Lady
         {
             for (int i = _dogs.Count - 1; i >= 0; i--)
             {
-                _dogs[i].Update(gameTime);
+                _dogs[i].Update(gameTime, _player.Position);
                 ClampDogToWorld(_dogs[i]);
 
                 if (_dogs[i].ShouldRemove())
@@ -309,17 +343,19 @@ namespace Call_of_Cat_Lady
 
                     float distance = Vector3.Distance(cat.Position, dog.Position);
                     if (distance <= CatThrowRange)
-                {
-                    if (dog.StartVaporize())
                     {
-                        _score += 100;
-                        SetStatusMessage("DOG DEREZZED +100");
-                        Console.WriteLine("DOG DEREZZED +100");
+                        if (dog.StartVaporize())
+                        {
+                            _score += DogDerezScore;
+                            _dogsDerezzed++;
+                            SetStatusMessage("DOG DEREZZED +100");
+                            Console.WriteLine("DOG DEREZZED +100");
+                        }
+
+                        cat.Consume();
+                        break;
                     }
-                    cat.Consume();
-                    break;
                 }
-            }
             }
         }
 
@@ -332,6 +368,60 @@ namespace Call_of_Cat_Lady
                     _cats.RemoveAt(i);
                 }
             }
+        }
+
+        private void HandleInventoryResult(CatInventoryUpdateResult inventoryResult)
+        {
+            if (inventoryResult.PickupResult == CatPickupResult.Collected)
+            {
+                _catsCollected++;
+                _score += CatCollectScoreBonus;
+                SetStatusMessage("Cat collected");
+            }
+            else if (inventoryResult.PickupResult == CatPickupResult.Full)
+            {
+                SetStatusMessage("Cat posse full");
+            }
+
+            if (inventoryResult.CatThrown)
+            {
+                _catsThrown++;
+            }
+        }
+
+        private void EndRound()
+        {
+            if (_roundComplete)
+                return;
+
+            _roundComplete = true;
+            SetStatusMessage("Day over", 2.5f);
+            Console.WriteLine("ROUND COMPLETE: day over.");
+        }
+
+        private void RestartRound()
+        {
+            _camera = new Camera(GraphicsDevice, _playerStartPosition + new Vector3(0f, 4f, -10f));
+            _catInventory = new CatInventory(MaxCarryCats);
+            _dayNightCycle = new DayNightCycle(GraphicsDevice);
+
+            _player = new Player(_playerModel, _playerStartPosition, GraphicsDevice);
+
+            _cats = new List<Cat>();
+            _dogs = new List<Dog>();
+            _score = 0;
+            _catsCollected = 0;
+            _catsThrown = 0;
+            _dogsDerezzed = 0;
+            _roundComplete = false;
+            _statusMessage = null;
+            _statusMessageTimer = 0f;
+
+            SpawnCats();
+            SpawnDogs();
+            _previousKeyboardState = Keyboard.GetState();
+
+            Mouse.SetPosition(GraphicsDevice.Viewport.Width / 2, GraphicsDevice.Viewport.Height / 2);
         }
 
         protected override void Draw(GameTime gameTime)
@@ -366,7 +456,10 @@ namespace Call_of_Cat_Lady
         {
             _spriteBatch.Begin();
 
-            DrawCrosshair();
+            if (!_roundComplete)
+            {
+                DrawCrosshair();
+            }
 
             if (_hudFont != null)
             {
@@ -378,13 +471,12 @@ namespace Call_of_Cat_Lady
                 var dogCounts = GetDogStateCounts();
                 var hudLines = new List<(string Text, Color Color)>
                 {
-                    ($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1}", Color.White),
-                    ("Camera mode: Third-person follow", Color.LightBlue),
-                    ($"Cats - Wandering: {counts.Wandering} | Following: {counts.Following} | Thrown: {counts.Thrown} | Recovering: {counts.Recovering}", Color.White),
-                    ($"Dogs - Active: {dogCounts.Active} | Derezzing: {dogCounts.Derezzing}", Color.Orange),
-                    ($"Inventory/Followers: {_catInventory.CatCount} | Score: {_score}", Color.Yellow),
-                    ($"Player model mode: {(_player.HasModel ? "Real" : "Fallback")}", Color.LightGreen),
-                    ($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", Color.White)
+                    ($"Time left: {_dayNightCycle.GetRemainingTimeString()} | Day progress: {_dayNightCycle.Progress:P0}", Color.LightBlue),
+                    ($"Cats: {_catInventory.CatCount} / {_catInventory.MaxCats} | Collected: {_catsCollected} | Thrown: {_catsThrown}", Color.White),
+                    ($"Dogs: active {dogCounts.Active} | derezzing {dogCounts.Derezzing} | derezzed {_dogsDerezzed}", Color.Orange),
+                    ($"Score: {_score} | Player model: {(_player.HasModel ? "Real" : "Fallback")}", Color.Yellow),
+                    ($"Cats on map: wandering {counts.Wandering} | following {counts.Following} | thrown {counts.Thrown} | recovering {counts.Recovering}", Color.White),
+                    ($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1} | Aim: {_camera.Yaw:F2} / {_camera.Pitch:F2}", Color.White)
                 };
 
                 if (!string.IsNullOrEmpty(_statusMessage))
@@ -401,17 +493,68 @@ namespace Call_of_Cat_Lady
                     y += lineHeight;
                 }
 
-                string helpText = "WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 test dog | ESC quit";
+                string helpText = "WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 debug dog | R restart | ESC quit";
                 int helpX = 10;
                 int helpY = GraphicsDevice.Viewport.Height - 28;
                 Vector2 helpSize = _hudFont.MeasureString(helpText);
                 Rectangle helpPanel = new Rectangle(helpX - 10, helpY - 6, (int)Math.Ceiling(helpSize.X) + 20, (int)Math.Ceiling(helpSize.Y) + 12);
                 DrawHudPanel(helpPanel, new Color(0, 0, 0, 170));
                 DrawHudLine(helpText, helpX, helpY, Color.White);
+
+                if (_roundComplete)
+                {
+                    DrawEndOfDayOverlay();
+                }
             }
 
             _spriteBatch.End();
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        }
+
+        private void DrawEndOfDayOverlay()
+        {
+            int viewportWidth = GraphicsDevice.Viewport.Width;
+            int viewportHeight = GraphicsDevice.Viewport.Height;
+
+            var overlayLines = new List<(string Text, Color Color)>
+            {
+                ("DAY OVER", Color.White),
+                ($"Final Score: {_score}", Color.Yellow),
+                ($"Dogs Derezzed: {_dogsDerezzed}", Color.Orange),
+                ($"Cats Collected: {_catsCollected}", Color.LightBlue),
+                ($"Cats Thrown: {_catsThrown}", Color.LightGreen),
+                ("Press R to restart", Color.White)
+            };
+
+            int overlayLineHeight = 28;
+            int overlayX = viewportWidth / 2;
+            int overlayY = viewportHeight / 2 - (overlayLines.Count * overlayLineHeight) / 2;
+
+            int panelWidth = 0;
+            foreach (var line in overlayLines)
+            {
+                Vector2 measured = _hudFont.MeasureString(line.Text);
+                panelWidth = Math.Max(panelWidth, (int)Math.Ceiling(measured.X));
+            }
+
+            Rectangle backdrop = new Rectangle(0, 0, viewportWidth, viewportHeight);
+            DrawHudPanel(backdrop, new Color(0, 0, 0, 120));
+
+            Rectangle panel = new Rectangle(
+                overlayX - panelWidth / 2 - 28,
+                overlayY - 18,
+                panelWidth + 56,
+                overlayLines.Count * overlayLineHeight + 36);
+            DrawHudPanel(panel, new Color(0, 0, 0, 205));
+
+            int textY = overlayY;
+            foreach (var line in overlayLines)
+            {
+                Vector2 size = _hudFont.MeasureString(line.Text);
+                int textX = overlayX - (int)Math.Ceiling(size.X / 2f);
+                DrawHudLine(line.Text, textX, textY, line.Color);
+                textY += overlayLineHeight;
+            }
         }
 
         private void DrawCrosshair()
@@ -603,6 +746,7 @@ namespace Call_of_Cat_Lady
             return MathHelper.Lerp(FollowerOccludedOpacity, 1f, blend);
         }
 
+        // Debug-only helper used by F9 for manual hit testing.
         private void PlaceDebugDogInFrontOfPlayer()
         {
             if (_dogs.Count == 0)

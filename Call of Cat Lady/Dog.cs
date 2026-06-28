@@ -8,6 +8,8 @@ namespace Call_of_Cat_Lady
         private const float GroundY = 1.0f;
         private const float VaporizeDuration = 1.0f;
         private const float RoamInterval = 2.5f;
+        private const float PursuitRange = 24f;
+        private const float PursuitSpeedMultiplier = 0.85f;
         private const float WorldMinX = -160f;
         private const float WorldMaxX = 160f;
         private const float WorldMinZ = -190f;
@@ -40,7 +42,7 @@ namespace Call_of_Cat_Lady
             SetNewRoamTarget();
         }
 
-        public void Update(GameTime gameTime)
+        public void Update(GameTime gameTime, Vector3 playerPosition)
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
@@ -52,7 +54,16 @@ namespace Call_of_Cat_Lady
                 return;
             }
 
-            UpdateRoaming(deltaTime);
+            float playerDistance = Vector3.Distance(playerPosition, Position);
+            if (playerDistance <= PursuitRange)
+            {
+                UpdatePursuit(deltaTime, playerPosition);
+            }
+            else
+            {
+                UpdateRoaming(deltaTime);
+            }
+
             Position = ClampToWorld(Position);
         }
 
@@ -106,6 +117,27 @@ namespace Call_of_Cat_Lady
                 direction.Normalize();
 
                 float step = moveSpeed * deltaTime;
+                if (step > distance)
+                    step = distance;
+
+                Position += direction * step;
+                RotationY = (float)Math.Atan2(direction.X, direction.Z);
+            }
+
+            Position = new Vector3(Position.X, GroundY, Position.Z);
+        }
+
+        private void UpdatePursuit(float deltaTime, Vector3 playerPosition)
+        {
+            Vector3 direction = playerPosition - Position;
+            direction.Y = 0f;
+
+            if (direction.LengthSquared() > 0.0001f)
+            {
+                float distance = direction.Length();
+                direction.Normalize();
+
+                float step = moveSpeed * PursuitSpeedMultiplier * deltaTime;
                 if (step > distance)
                     step = distance;
 

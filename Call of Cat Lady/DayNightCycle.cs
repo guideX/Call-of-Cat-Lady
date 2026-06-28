@@ -9,9 +9,11 @@ namespace Call_of_Cat_Lady
     /// </summary>
     public class DayNightCycle
     {
+        private const float DayLengthInSeconds = 300f;  // 5 minute day/night cycle
+        private const float StartTimeOfDay = 0.25f;      // Start at sunrise for a readable round opener
         private BasicEffect basicEffect;
-        private float timeOfDay = 0.25f;  // 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset, 1.0 = midnight
-        private const float DayLengthInSeconds = 240f;  // 4 minute day/night cycle
+        private float timeOfDay = StartTimeOfDay;  // 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset, 1.0 = midnight
+        private float elapsedSeconds;
         
         // Celestial bodies
         private Vector3 sunPosition;
@@ -27,6 +29,9 @@ namespace Call_of_Cat_Lady
         private const int CloudCount = 15;
         
         public float TimeOfDay => timeOfDay;
+        public float Progress => MathHelper.Clamp(elapsedSeconds / DayLengthInSeconds, 0f, 1f);
+        public float RemainingSeconds => Math.Max(0f, DayLengthInSeconds - elapsedSeconds);
+        public bool IsComplete => elapsedSeconds >= DayLengthInSeconds;
         public Color SkyColor => currentSkyColor;
         public Color AmbientLight => currentAmbientLight;
         public bool IsNight => timeOfDay < 0.25f || timeOfDay > 0.75f;
@@ -47,8 +52,8 @@ namespace Call_of_Cat_Lady
                 VertexColorEnabled = true,
                 LightingEnabled = false
             };
-            
-            InitializeClouds();
+
+            Reset();
         }
 
         private void InitializeClouds()
@@ -74,15 +79,33 @@ namespace Call_of_Cat_Lady
             }
         }
 
+        public void Reset()
+        {
+            elapsedSeconds = 0f;
+            timeOfDay = StartTimeOfDay;
+            InitializeClouds();
+            UpdateColors();
+            UpdateCelestialPositions();
+        }
+
         public void Update(GameTime gameTime)
         {
+            if (IsComplete)
+                return;
+
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            
-            // Update time of day (0 to 1, wrapping around)
-            timeOfDay += deltaTime / DayLengthInSeconds;
-            if (timeOfDay > 1.0f)
-                timeOfDay -= 1.0f;
-            
+
+            elapsedSeconds = Math.Min(DayLengthInSeconds, elapsedSeconds + deltaTime);
+            float dayProgress = Progress;
+            timeOfDay = MathHelper.Lerp(StartTimeOfDay, 1f, dayProgress);
+            UpdateCelestialPositions();
+            UpdateColors();
+
+            UpdateClouds(deltaTime);
+        }
+
+        private void UpdateCelestialPositions()
+        {
             // Calculate sun and moon positions (circular path across sky)
             float sunAngle = timeOfDay * MathHelper.TwoPi;
             float sunRadius = 200f;
@@ -90,15 +113,9 @@ namespace Call_of_Cat_Lady
                 (float)Math.Cos(sunAngle) * sunRadius,
                 (float)Math.Sin(sunAngle) * sunRadius,
                 0);
-            
+
             // Moon is opposite to sun
             moonPosition = -sunPosition;
-            
-            // Update colors based on time of day
-            UpdateColors();
-            
-            // Update clouds
-            UpdateClouds(deltaTime);
         }
 
         private void UpdateColors()
@@ -397,8 +414,19 @@ namespace Call_of_Cat_Lady
             return $"{hour:D2}:{minute:D2}";
         }
 
+        public string GetRemainingTimeString()
+        {
+            int totalSeconds = (int)Math.Ceiling(RemainingSeconds);
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return $"{minutes:D2}:{seconds:D2}";
+        }
+
         public string GetTimeOfDayDescription()
         {
+            if (IsComplete)
+                return "Day over";
+
             if (timeOfDay < 0.2f)
                 return "Night";
             else if (timeOfDay < 0.3f)

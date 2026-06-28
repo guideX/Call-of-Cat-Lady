@@ -5,25 +5,41 @@ using System.Collections.Generic;
 
 namespace Call_of_Cat_Lady
 {
+    public enum CatPickupResult
+    {
+        None,
+        Collected,
+        Full
+    }
+
+    public struct CatInventoryUpdateResult
+    {
+        public CatPickupResult PickupResult;
+        public bool CatThrown;
+    }
+
     public class CatInventory
     {
         public int CatCount { get; private set; }
+        public int MaxCats { get; }
 
         private const float PickupRange = 3.0f;
         private const float ShootPower = 18.0f;
         private MouseState previousMouseState;
         private KeyboardState previousKeyboardState;
 
-        public CatInventory()
+        public CatInventory(int maxCats = 8)
         {
+            MaxCats = Math.Max(1, maxCats);
             previousMouseState = Mouse.GetState();
             previousKeyboardState = Keyboard.GetState();
         }
 
-        public void Update(GameTime gameTime, Camera camera, Player player, List<Cat> cats)
+        public CatInventoryUpdateResult Update(GameTime gameTime, Camera camera, Player player, List<Cat> cats)
         {
             MouseState currentMouseState = Mouse.GetState();
             KeyboardState currentKeyboardState = Keyboard.GetState();
+            CatInventoryUpdateResult result = default;
 
             bool pickupPressed = (currentMouseState.RightButton == ButtonState.Pressed &&
                                  previousMouseState.RightButton == ButtonState.Released) ||
@@ -35,18 +51,19 @@ namespace Call_of_Cat_Lady
 
             if (pickupPressed)
             {
-                TryPickupCat(player.Position, cats);
+                result.PickupResult = TryPickupCat(player.Position, cats);
             }
 
             if (shootPressed)
             {
-                ShootCat(camera, player.Position, cats);
+                result.CatThrown = ShootCat(camera, player.Position, cats);
             }
 
             RefreshCount(cats);
 
             previousMouseState = currentMouseState;
             previousKeyboardState = currentKeyboardState;
+            return result;
         }
 
         public void RefreshCount(List<Cat> cats)
@@ -61,7 +78,7 @@ namespace Call_of_Cat_Lady
             CatCount = count;
         }
 
-        private void TryPickupCat(Vector3 playerPosition, List<Cat> cats)
+        private CatPickupResult TryPickupCat(Vector3 playerPosition, List<Cat> cats)
         {
             Cat nearest = null;
             float nearestDistance = float.MaxValue;
@@ -79,13 +96,17 @@ namespace Call_of_Cat_Lady
                 }
             }
 
-            if (nearest != null)
-            {
-                nearest.BeginFollowing(-1);
-            }
+            if (nearest == null)
+                return CatPickupResult.None;
+
+            if (CatCount >= MaxCats)
+                return CatPickupResult.Full;
+
+            nearest.BeginFollowing(-1);
+            return CatPickupResult.Collected;
         }
 
-        private void ShootCat(Camera camera, Vector3 playerPosition, List<Cat> cats)
+        private bool ShootCat(Camera camera, Vector3 playerPosition, List<Cat> cats)
         {
             Cat follower = null;
             int bestSlotIndex = int.MinValue;
@@ -116,7 +137,7 @@ namespace Call_of_Cat_Lady
             }
 
             if (follower == null)
-                return;
+                return false;
 
             Vector3 throwDirection = camera.GetForwardDirection();
             if (throwDirection.LengthSquared() < 0.0001f)
@@ -132,6 +153,7 @@ namespace Call_of_Cat_Lady
 
             Vector3 spawnPosition = playerPosition + throwForward * 2.2f + Vector3.Up * 1.45f;
             follower.Throw(spawnPosition, throwDirection, ShootPower);
+            return true;
         }
     }
 }
