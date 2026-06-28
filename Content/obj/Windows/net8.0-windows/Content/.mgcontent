@@ -15,9 +15,13 @@
     <File>D:/dev/CallOfCatLady/Content/Models/cat_new.fbx</File>
     <File>D:/dev/CallOfCatLady/Content/Models/cat_texture_new.png</File>
     <File>D:/dev/CallOfCatLady/Content/Models/cat_walk.fbx</File>
+    <File>D:/dev/CallOfCatLady/Content/Models/lady.fbx</File>
     <File>D:/dev/CallOfCatLady/Content/Models/contortionist_texture.png</File>
+    <File>D:/dev/CallOfCatLady/Content/Fonts/HudFont.spritefont</File>
   </SourceFiles>
   <DestFiles>
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />

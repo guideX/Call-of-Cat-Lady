@@ -5,88 +5,110 @@ using System.Collections.Generic;
 
 namespace Call_of_Cat_Lady
 {
-    /// <summary>
-    /// Manages the player's cat inventory and shooting
-    /// </summary>
     public class CatInventory
     {
         public int CatCount { get; private set; }
-        private const float PickupRange = 3f;
-        private const float ShootPower = 20f;
-        
+
+        private const float PickupRange = 3.0f;
+        private const float ShootPower = 18.0f;
         private MouseState previousMouseState;
         private KeyboardState previousKeyboardState;
 
         public CatInventory()
         {
-            CatCount = 0;
             previousMouseState = Mouse.GetState();
             previousKeyboardState = Keyboard.GetState();
         }
 
-        public void Update(GameTime gameTime, Camera camera, List<Cat> cats)
+        public void Update(GameTime gameTime, Camera camera, Player player, List<Cat> cats)
         {
             MouseState currentMouseState = Mouse.GetState();
             KeyboardState currentKeyboardState = Keyboard.GetState();
 
-            // Pick up nearby cats on right mouse click or E key press
-            if ((currentMouseState.RightButton == ButtonState.Pressed && 
-                 previousMouseState.RightButton == ButtonState.Released) ||
-                (currentKeyboardState.IsKeyDown(Keys.E) && 
-                 previousKeyboardState.IsKeyUp(Keys.E)))
+            bool pickupPressed = (currentMouseState.RightButton == ButtonState.Pressed &&
+                                 previousMouseState.RightButton == ButtonState.Released) ||
+                                (currentKeyboardState.IsKeyDown(Keys.E) &&
+                                 previousKeyboardState.IsKeyUp(Keys.E));
+
+            bool shootPressed = currentMouseState.LeftButton == ButtonState.Pressed &&
+                                previousMouseState.LeftButton == ButtonState.Released;
+
+            if (pickupPressed)
             {
-                TryPickupCats(camera, cats);
+                TryPickupCat(player.Position, cats);
             }
 
-            // Shoot cats on left mouse click
-            if (currentMouseState.LeftButton == ButtonState.Pressed && 
-                previousMouseState.LeftButton == ButtonState.Released &&
-                CatCount > 0)
+            if (shootPressed)
             {
-                ShootCat(camera, cats);
+                ShootCat(camera, player.Position, cats);
             }
+
+            RefreshCount(cats);
 
             previousMouseState = currentMouseState;
             previousKeyboardState = currentKeyboardState;
         }
 
-        private void TryPickupCats(Camera camera, List<Cat> cats)
+        public void RefreshCount(List<Cat> cats)
         {
+            int count = 0;
             foreach (var cat in cats)
             {
-                if (!cat.IsCollected && !cat.IsProjectile)
+                if (cat.State == CatState.FollowingPlayer)
+                    count++;
+            }
+
+            CatCount = count;
+        }
+
+        private void TryPickupCat(Vector3 playerPosition, List<Cat> cats)
+        {
+            Cat nearest = null;
+            float nearestDistance = float.MaxValue;
+
+            foreach (var cat in cats)
+            {
+                if (cat.State != CatState.Wandering)
+                    continue;
+
+                float distance = Vector3.Distance(cat.Position, playerPosition);
+                if (distance <= PickupRange && distance < nearestDistance)
                 {
-                    float distance = cat.DistanceToPoint(camera.Position);
-                    if (distance < PickupRange)
-                    {
-                        cat.IsCollected = true;
-                        CatCount++;
-                    }
+                    nearest = cat;
+                    nearestDistance = distance;
                 }
+            }
+
+            if (nearest != null)
+            {
+                nearest.BeginFollowing(-1);
             }
         }
 
-        private void ShootCat(Camera camera, List<Cat> cats)
+        private void ShootCat(Camera camera, Vector3 playerPosition, List<Cat> cats)
         {
-            // Create a new cat projectile
-            Vector3 shootDirection = camera.GetForwardDirection();
-            Vector3 spawnPosition = camera.Position + shootDirection * 2f;
+            Cat follower = null;
 
-            Cat projectile = new Cat(spawnPosition)
+            foreach (var cat in cats)
             {
-                IsProjectile = true,
-                Velocity = shootDirection * ShootPower,
-                Scale = 0.3f,
-                // Add realistic angular velocity for tumbling motion
-                AngularVelocity = new Vector3(
-                    (float)(new Random().NextDouble() - 0.5) * 15f,  // Tumble forward/backward
-                    (float)(new Random().NextDouble() - 0.5) * 20f,  // Spin around
-                    (float)(new Random().NextDouble() - 0.5) * 15f   // Roll side to side
-                )
-            };
+                if (cat.State == CatState.FollowingPlayer)
+                {
+                    follower = cat;
+                    break;
+                }
+            }
 
-            cats.Add(projectile);
-            CatCount--;
+            if (follower == null)
+                return;
+
+            Vector3 throwDirection = camera.GetForwardDirection();
+            if (throwDirection.LengthSquared() < 0.0001f)
+            {
+                throwDirection = Vector3.Forward;
+            }
+
+            Vector3 spawnPosition = playerPosition + camera.GetFlatForwardDirection() * 1.7f + Vector3.Up * 1.0f;
+            follower.Throw(spawnPosition, throwDirection, ShootPower);
         }
     }
 }

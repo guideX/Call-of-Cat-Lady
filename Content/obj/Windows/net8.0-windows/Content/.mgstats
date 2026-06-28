@@ -1,5 +1,6 @@
 Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Size,Build Seconds
 "D:/dev/CallOfCatLady/Content/ceshi/Muchkin2_BaseColor.png","D:/dev/CallOfCatLady/Content/bin/Windows/Content/ceshi/Muchkin2_BaseColor_0.xnb","TextureProcessor","Texture2DContent",9296982,11184957,19.609362
+"D:/dev/CallOfCatLady/Content/Fonts/HudFont.spritefont","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Fonts/HudFont.xnb","FontDescriptionProcessor","SpriteFontContent",478,37913,0.0897393
 "D:/dev/CallOfCatLady/Content/Images/brick.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick.xnb","TextureProcessor","Texture2DContent",1337225,2559877,0.4210171
 "D:/dev/CallOfCatLady/Content/Images/brick2.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick2.xnb","TextureProcessor","Texture2DContent",81474,1439585,0.1835317
 "D:/dev/CallOfCatLady/Content/Images/brick3.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick3.xnb","TextureProcessor","Texture2DContent",71680,2889065,0.3821756
@@ -12,4 +13,5 @@ Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Siz
 "D:/dev/CallOfCatLady/Content/Models/cat_walk.fbx","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/cat_walk.xnb","ModelProcessor","ModelContent",864764,234971,0.2436407
 "D:/dev/CallOfCatLady/Content/Models/cat.fbx","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/cat.xnb","ModelProcessor","ModelContent",273276,184088,1.2639409
 "D:/dev/CallOfCatLady/Content/Models/contortionist_texture.png","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/contortionist_texture.xnb","TextureProcessor","Texture2DContent",7980241,89478617,11.1305275
+"D:/dev/CallOfCatLady/Content/Models/lady.fbx","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/lady.xnb","ModelProcessor","ModelContent",1164380,771688,0.2704675
 "D:/dev/CallOfCatLady/Content/Models/textures/packed/Image_0","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/textures/packed/Image_0_0.xnb","TextureProcessor","Texture2DContent",358035,699189,1.1435035

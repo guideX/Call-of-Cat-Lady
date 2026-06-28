@@ -60,20 +60,20 @@ namespace Call_of_Cat_Lady
 
         private void DrawVaporizingDog(GraphicsDevice graphicsDevice, Color mainColor, float timer)
         {
-            // Expand and fade out effect
-            float scale = 1f + timer * 2f;
-            int alpha = (int)(255 * (1f - timer));
+            float progress = MathHelper.Clamp(timer, 0f, 1f);
+            float scale = MathHelper.Lerp(1f, 1.8f, progress);
+            int alpha = (int)(255 * (1f - progress));
             Color fadeColor = new Color(mainColor.R, mainColor.G, mainColor.B, alpha);
-            Color glowColor = new Color(255, 255, 100, alpha / 2); // Yellow glow
+            Color glowColor = new Color(255, 255, 140, alpha / 2);
             
             // Expanding particles
             for (int i = 0; i < 8; i++)
             {
                 float angle = i * MathHelper.TwoPi / 8;
                 Vector3 offset = new Vector3(
-                    (float)Math.Cos(angle) * timer * 2f,
-                    timer * 3f,
-                    (float)Math.Sin(angle) * timer * 2f
+                    (float)Math.Cos(angle) * progress * 2f,
+                    progress * 2.5f,
+                    (float)Math.Sin(angle) * progress * 2f
                 );
                 
                 DrawEllipsoid(graphicsDevice, offset, new Vector3(0.3f, 0.3f, 0.3f) * scale, glowColor, 4, 4);

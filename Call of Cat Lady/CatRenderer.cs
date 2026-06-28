@@ -115,10 +115,32 @@ namespace Call_of_Cat_Lady
                 Console.WriteLine("🎨  Using procedural cat rendering");
             }
         }
+
+        public void CleanupAnimationPlayers(List<Cat> activeCats)
+        {
+            if (!useLoadedModel || animationPlayers.Count == 0)
+                return;
+
+            HashSet<Cat> activeSet = new HashSet<Cat>(activeCats);
+            List<Cat> staleCats = new List<Cat>();
+
+            foreach (var entry in animationPlayers)
+            {
+                if (!activeSet.Contains(entry.Key))
+                {
+                    staleCats.Add(entry.Key);
+                }
+            }
+
+            foreach (var cat in staleCats)
+            {
+                animationPlayers.Remove(cat);
+            }
+        }
         
         public void DrawCat(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)
         {
-            if (cat.IsCollected && !cat.IsProjectile)
+            if (cat.State == CatState.Consumed)
                 return;
 
             float distanceToCamera = Vector3.Distance(camera.Position, cat.Position);
@@ -190,7 +212,7 @@ namespace Call_of_Cat_Lady
                 
                 // Update animation based on cat movement
                 // If cat is moving, play animation faster based on speed
-                if (!cat.IsProjectile && !cat.IsCollected)
+                if (cat.State == CatState.Wandering || cat.State == CatState.FollowingPlayer || cat.State == CatState.Recovering)
                 {
                     // Calculate movement speed
                     float movementSpeed = CalculateCatSpeed(cat);

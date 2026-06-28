@@ -3,129 +3,150 @@ using System;
 
 namespace Call_of_Cat_Lady
 {
-    /// <summary>
-    /// Represents a dog in the game - cats vaporize them for points!
-    /// </summary>
     public class Dog
     {
-        public Vector3 Position { get; set; }
-        public Vector3 Velocity { get; set; }
-        public float Scale { get; set; }
-        public float RotationY { get; set; }
-        public DogBreed Breed { get; set; }
-        public bool IsVaporizing { get; set; }
-        public float VaporizeTimer { get; set; }
-        
+        private const float GroundY = 1.0f;
+        private const float VaporizeDuration = 1.0f;
+        private const float RoamInterval = 2.5f;
+        private const float WorldMinX = -160f;
+        private const float WorldMaxX = 160f;
+        private const float WorldMinZ = -190f;
+        private const float WorldMaxZ = 190f;
+
         private Vector3 targetPosition;
         private float roamTimer;
-        private Random random;
-        private float moveSpeed;
-        private const float RoamInterval = 3f;
+        private readonly Random random;
+        private readonly float moveSpeed;
+
+        public Vector3 Position { get; set; }
+        public Vector3 Velocity { get; set; }
+        public float Scale { get; set; } = 0.55f;
+        public float RotationY { get; set; }
+        public DogBreed Breed { get; private set; }
+        public bool IsVaporizing { get; private set; }
+        public float VaporizeTimer { get; private set; }
 
         public Dog(Vector3 position, Random random = null)
         {
-            Position = position;
-            Scale = 0.6f;
-            IsVaporizing = false;
-            VaporizeTimer = 0f;
             this.random = random ?? new Random();
+            Position = ClampToGround(position);
             RotationY = (float)(this.random.NextDouble() * MathHelper.TwoPi);
-            
-            // Assign random breed
+            Velocity = Vector3.Zero;
+
             Array breeds = Enum.GetValues(typeof(DogBreed));
             Breed = (DogBreed)breeds.GetValue(this.random.Next(breeds.Length));
-            
-            SetBreedTraits();
-            SetNewRoamTarget();
-        }
+            moveSpeed = GetBreedSpeed(Breed);
 
-        private void SetBreedTraits()
-        {
-            moveSpeed = Breed switch
-            {
-                DogBreed.Chihuahua => 1.5f,      // Fast and yappy
-                DogBreed.Bulldog => 0.8f,        // Slow and sturdy
-                DogBreed.Retriever => 1.2f,      // Medium speed
-                DogBreed.Shepherd => 1.3f,       // Alert and mobile
-                _ => 1.0f
-            };
+            SetNewRoamTarget();
         }
 
         public void Update(GameTime gameTime)
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            
+
             if (IsVaporizing)
             {
                 VaporizeTimer += deltaTime;
-                return; // Don't move while vaporizing
+                Velocity = Vector3.Zero;
+                Position = ClampToGround(Position);
+                return;
             }
-            
+
             UpdateRoaming(deltaTime);
-        }
-
-        private void UpdateRoaming(float deltaTime)
-        {
-            roamTimer += deltaTime;
-            
-            if (roamTimer >= RoamInterval)
-            {
-                SetNewRoamTarget();
-            }
-            
-            Vector3 direction = targetPosition - Position;
-            if (direction.Length() > 0.5f)
-            {
-                direction.Normalize();
-                Vector3 newPosition = Position + direction * moveSpeed * deltaTime;
-                newPosition.Y = 0.2f; // Keep on ground
-                Position = newPosition;
-                
-                // Face movement direction
-                if (direction.Length() > 0.01f)
-                {
-                    RotationY = (float)Math.Atan2(direction.X, direction.Z);
-                }
-            }
-        }
-
-        private void SetNewRoamTarget()
-        {
-            roamTimer = 0;
-            float distance = 5 + (float)random.NextDouble() * 10;
-            float angle = (float)(random.NextDouble() * Math.PI * 2);
-            
-            targetPosition = Position + new Vector3(
-                (float)Math.Cos(angle) * distance,
-                0,
-                (float)Math.Sin(angle) * distance
-            );
-            
-            targetPosition.Y = 0.2f;
+            Position = ClampToWorld(Position);
         }
 
         public void StartVaporize()
         {
             IsVaporizing = true;
             VaporizeTimer = 0f;
+            Velocity = Vector3.Zero;
         }
 
         public bool ShouldRemove()
         {
-            return IsVaporizing && VaporizeTimer > 1.0f; // Remove after 1 second
+            return IsVaporizing && VaporizeTimer >= VaporizeDuration;
         }
 
         public float DistanceToPoint(Vector3 point)
         {
             return Vector3.Distance(Position, point);
         }
+
+        private void UpdateRoaming(float deltaTime)
+        {
+            roamTimer += deltaTime;
+            if (roamTimer >= RoamInterval)
+            {
+                SetNewRoamTarget();
+            }
+
+            Vector3 direction = targetPosition - Position;
+            direction.Y = 0f;
+
+            if (direction.LengthSquared() > 0.0001f)
+            {
+                float distance = direction.Length();
+                direction.Normalize();
+
+                float step = moveSpeed * deltaTime;
+                if (step > distance)
+                    step = distance;
+
+                Position += direction * step;
+                RotationY = (float)Math.Atan2(direction.X, direction.Z);
+            }
+
+            Position = new Vector3(Position.X, GroundY, Position.Z);
+        }
+
+        private void SetNewRoamTarget()
+        {
+            roamTimer = 0f;
+            float distance = 3f + (float)random.NextDouble() * 7f;
+            float angle = (float)(random.NextDouble() * Math.PI * 2);
+
+            targetPosition = Position + new Vector3(
+                (float)Math.Cos(angle) * distance,
+                0f,
+                (float)Math.Sin(angle) * distance);
+
+            targetPosition = ClampToWorld(targetPosition);
+            targetPosition = new Vector3(targetPosition.X, GroundY, targetPosition.Z);
+        }
+
+        private static float GetBreedSpeed(DogBreed breed)
+        {
+            return breed switch
+            {
+                DogBreed.Chihuahua => 1.45f,
+                DogBreed.Bulldog => 0.75f,
+                DogBreed.Retriever => 1.05f,
+                DogBreed.Shepherd => 1.15f,
+                _ => 1f
+            };
+        }
+
+        private static Vector3 ClampToGround(Vector3 position)
+        {
+            position.Y = GroundY;
+            return ClampToWorld(position);
+        }
+
+        private static Vector3 ClampToWorld(Vector3 position)
+        {
+            position.X = MathHelper.Clamp(position.X, WorldMinX, WorldMaxX);
+            position.Z = MathHelper.Clamp(position.Z, WorldMinZ, WorldMaxZ);
+            position.Y = GroundY;
+            return position;
+        }
     }
 
     public enum DogBreed
     {
-        Chihuahua,   // Small, yappy
-        Bulldog,     // Stocky, slow
-        Retriever,   // Friendly looking
-        Shepherd     // Alert, tall
+        Chihuahua,
+        Bulldog,
+        Retriever,
+        Shepherd
     }
 }
