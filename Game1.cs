@@ -15,6 +15,8 @@ namespace Call_of_Cat_Lady
         private const float WorldMaxZ = 185f;
         private const float PlayerHeadHeight = 1.35f;
         private const float CatThrowRange = 1.5f;
+        private const float DebugDogDistance = 8f;
+        private const float StatusMessageDuration = 1.25f;
         private const int InitialCatCount = 24;
         private const int InitialDogCount = 6;
 
@@ -33,6 +35,9 @@ namespace Call_of_Cat_Lady
         private List<Cat> _cats;
         private List<Dog> _dogs;
         private int _score;
+        private KeyboardState _previousKeyboardState;
+        private string _statusMessage;
+        private float _statusMessageTimer;
 
         private Texture2D _crosshairTexture;
         private readonly Vector3 _playerStartPosition = new Vector3(0f, GroundY, 0f);
@@ -64,6 +69,7 @@ namespace Call_of_Cat_Lady
 
             SpawnCats();
             SpawnDogs();
+            _previousKeyboardState = Keyboard.GetState();
 
             base.Initialize();
         }
@@ -189,10 +195,25 @@ namespace Call_of_Cat_Lady
             if (keyState.IsKeyDown(Keys.Escape))
                 Exit();
 
+            if (keyState.IsKeyDown(Keys.F9) && _previousKeyboardState.IsKeyUp(Keys.F9))
+            {
+                PlaceDebugDogInFrontOfPlayer();
+            }
+
             _camera.UpdateLook(gameTime, GraphicsDevice);
             _player.Update(gameTime, _camera);
             ClampPlayerToWorld();
             _camera.UpdateFollow(_player.Position + Vector3.Up * PlayerHeadHeight);
+
+            if (_statusMessageTimer > 0f)
+            {
+                _statusMessageTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (_statusMessageTimer <= 0f)
+                {
+                    _statusMessageTimer = 0f;
+                    _statusMessage = null;
+                }
+            }
 
             _dayNightCycle.Update(gameTime);
             _catInventory.Update(gameTime, _camera, _player, _cats);
@@ -206,6 +227,7 @@ namespace Call_of_Cat_Lady
             _catRenderer.CleanupAnimationPlayers(_cats);
 
             _catInventory.RefreshCount(_cats);
+            _previousKeyboardState = keyState;
 
             base.Update(gameTime);
         }
@@ -285,15 +307,17 @@ namespace Call_of_Cat_Lady
 
                     float distance = Vector3.Distance(cat.Position, dog.Position);
                     if (distance <= CatThrowRange)
+                {
+                    if (dog.StartVaporize())
                     {
-                        if (dog.StartVaporize())
-                        {
-                            _score += 100;
-                        }
-                        cat.Consume();
-                        break;
+                        _score += 100;
+                        SetStatusMessage("DOG DEREZZED +100");
+                        Console.WriteLine("DOG DEREZZED +100");
                     }
+                    cat.Consume();
+                    break;
                 }
+            }
             }
         }
 
@@ -358,8 +382,13 @@ namespace Call_of_Cat_Lady
                 string playerRenderer = _player.HasModel ? "Real" : "Fallback";
                 DrawHudLine($"Player model mode: {playerRenderer}", x, y, Color.LightGreen); y += lineHeight;
                 DrawHudLine($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", x, y, Color.White); y += lineHeight;
+                if (!string.IsNullOrEmpty(_statusMessage))
+                {
+                    DrawHudLine(_statusMessage, x, y, Color.OrangeRed);
+                    y += lineHeight;
+                }
 
-                DrawHudLine("WASD move | Mouse aim | Left click throw | Right click/E pickup | ESC quit",
+                DrawHudLine("WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 test dog | ESC quit",
                     10, GraphicsDevice.Viewport.Height - 28, Color.White);
             }
 
@@ -457,15 +486,52 @@ namespace Call_of_Cat_Lady
 
         private Vector3 GetFollowTarget(Vector3 playerPosition, Vector3 forward, Vector3 right, int slotIndex)
         {
-            int row = Math.Max(0, slotIndex) / 3;
-            int column = Math.Max(0, slotIndex) % 3;
+            int index = Math.Max(0, slotIndex);
+            int tier = index / 2;
+            bool leftSide = index % 2 == 0;
 
-            float backOffset = 2.15f + row * 1.25f;
-            float sideOffset = (column - 1f) * 1.35f;
+            float backOffset = 2.35f + tier * 1.15f;
+            float sideOffset = (leftSide ? -1f : 1f) * (1.0f + tier * 0.75f);
 
             Vector3 target = playerPosition - forward * backOffset + right * sideOffset;
             target.Y = GroundY;
             return ClampToWorld(target);
+        }
+
+        private void PlaceDebugDogInFrontOfPlayer()
+        {
+            if (_dogs.Count == 0)
+                return;
+
+            Vector3 forward = _camera.GetFlatForwardDirection();
+            if (forward.LengthSquared() < 0.0001f)
+            {
+                forward = Vector3.Forward;
+            }
+
+            Vector3 testPosition = _player.Position + forward * DebugDogDistance;
+            testPosition.Y = GroundY;
+
+            Dog debugDog = null;
+            foreach (var dog in _dogs)
+            {
+                if (!dog.IsVaporizing)
+                {
+                    debugDog = dog;
+                    break;
+                }
+            }
+
+            debugDog ??= _dogs[0];
+            debugDog.PlaceForTest(testPosition, (float)Math.Atan2(forward.X, forward.Z));
+            SetStatusMessage("DEBUG DOG PLACED");
+            Console.WriteLine("DEBUG: dog repositioned in front of the player for manual hit testing.");
+        }
+
+        private void SetStatusMessage(string message, float duration = StatusMessageDuration)
+        {
+            _statusMessage = message;
+            _statusMessageTimer = duration;
         }
 
         private Vector3 ClampToWorld(Vector3 position)

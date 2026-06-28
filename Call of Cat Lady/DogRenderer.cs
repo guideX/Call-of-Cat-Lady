@@ -64,6 +64,14 @@ namespace Call_of_Cat_Lady
             int alpha = (int)(255 * (1f - progress));
             Color fadeColor = new Color(mainColor.R, mainColor.G, mainColor.B, alpha);
             Color glowColor = new Color(255, 255, 140, alpha / 2);
+            float flashProgress = MathHelper.Clamp(progress / 0.2f, 0f, 1f);
+            float flashStrength = 1f - flashProgress;
+
+            if (flashStrength > 0f)
+            {
+                Color flashColor = new Color(255, 255, 255, (int)(220 * flashStrength));
+                DrawEllipsoid(graphicsDevice, Vector3.Zero, new Vector3(1.9f, 1.3f, 1.3f) * (1f + flashStrength * 0.35f), flashColor, 8, 6);
+            }
             
             // Expanding particles
             for (int i = 0; i < 8; i++)

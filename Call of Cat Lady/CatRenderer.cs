@@ -19,6 +19,8 @@ namespace Call_of_Cat_Lady
         private const float LOD_HIGH_DISTANCE = 20f;
         private const float LOD_MEDIUM_DISTANCE = 50f;
         private const float LOD_LOW_DISTANCE = 300f;
+        private const float LoadedModelScale = 0.00055f;
+        private const float ProceduralModelScale = 0.12f;
 
         // 3D Model support (MonoGame Model format - FBX)
         private Model catModel;
@@ -112,27 +114,35 @@ namespace Call_of_Cat_Lady
             if (distanceToCamera > LOD_LOW_DISTANCE)
                 return;
 
-            // Use a fixed, reasonable scale for the cat model - MUCH SMALLER!
-            float renderScale = useLoadedModel ? 0.001f : cat.Scale * 0.12f;
+            // Keep loaded cats compact so follower packs stay readable near the camera.
+            float renderScale = useLoadedModel ? LoadedModelScale : cat.Scale * ProceduralModelScale;
+            if (cat.State == CatState.Thrown)
+            {
+                renderScale *= 1.08f;
+            }
             
-            // Build world matrix - simpler approach for loaded models
+            // Build world matrix - keep the model centered on the cat's current world position.
             Matrix world;
             if (useLoadedModel && catModel != null)
             {
-                // For loaded models: the FBX content pipeline already converts to Y-up.
-                // No additional X rotation needed — cat should be on all fours as imported.
+                Vector3 modelOffset = new Vector3(0f, -modelGroundOffset * renderScale, 0f);
                 world = Matrix.CreateScale(renderScale) *
                         Matrix.CreateRotationY(cat.RotationY) *
-                        Matrix.CreateTranslation(cat.Position);
+                        Matrix.CreateTranslation(cat.Position + modelOffset);
             }
             else
             {
                 // For procedural cats: use the original scale factor
-                world = Matrix.CreateScale(cat.Scale * 0.12f) *
+                world = Matrix.CreateScale(cat.Scale * ProceduralModelScale) *
                         Matrix.CreateRotationX(cat.RotationX) *
                         Matrix.CreateRotationY(cat.RotationY) *
                         Matrix.CreateRotationZ(cat.RotationZ) *
                         Matrix.CreateTranslation(cat.Position);
+            }
+
+            if (cat.State == CatState.Thrown)
+            {
+                DrawProjectileTrail(graphicsDevice, camera, cat, ambientLight);
             }
 
             if (useLoadedModel && catModel != null)
@@ -189,15 +199,29 @@ namespace Call_of_Cat_Lady
                         // Use subtle personality tinting with texture
                         Color tintColor = GetColorForPersonality(cat.Personality);
                         Vector3 subtleTint = Vector3.Lerp(Vector3.One, tintColor.ToVector3(), 0.3f); // 30% tint
+                        if (cat.State == CatState.Thrown)
+                        {
+                            subtleTint = Vector3.Lerp(subtleTint, Vector3.One, 0.25f);
+                        }
                         effect.DiffuseColor = subtleTint;
+                        effect.EmissiveColor = cat.State == CatState.Thrown
+                            ? Vector3.One * 0.06f
+                            : tintColor.ToVector3() * 0.1f;
                     }
                     else
                     {
                         // No texture - use stronger personality color
                         effect.TextureEnabled = false;
                         Color tintColor = GetColorForPersonality(cat.Personality);
-                        effect.DiffuseColor = tintColor.ToVector3();
-                        effect.EmissiveColor = tintColor.ToVector3() * 0.2f; // Add slight glow
+                        Vector3 diffuse = tintColor.ToVector3();
+                        if (cat.State == CatState.Thrown)
+                        {
+                            diffuse = Vector3.Lerp(diffuse, Vector3.One, 0.2f);
+                        }
+                        effect.DiffuseColor = diffuse;
+                        effect.EmissiveColor = cat.State == CatState.Thrown
+                            ? Vector3.One * 0.12f
+                            : tintColor.ToVector3() * 0.2f; // Add slight glow
                     }
                     
                     // Subtle specular
@@ -206,6 +230,42 @@ namespace Call_of_Cat_Lady
                 }
                 
                 mesh.Draw();
+            }
+        }
+
+        private void DrawProjectileTrail(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)
+        {
+            Vector3 velocity = cat.Velocity;
+            if (velocity.LengthSquared() < 0.0001f)
+                return;
+
+            Vector3 direction = Vector3.Normalize(velocity);
+            float speed = velocity.Length();
+            float trailLength = MathHelper.Clamp(speed * 0.12f, 1.1f, 3.2f);
+            Vector3 side = Vector3.Cross(direction, Vector3.Up);
+            if (side.LengthSquared() < 0.0001f)
+            {
+                side = camera.GetRightDirection();
+            }
+            else
+            {
+                side.Normalize();
+            }
+
+            Vector3 up = Vector3.Up * 0.18f;
+            Color trailBase = ApplyLighting(Color.Lerp(GetColorForPersonality(cat.Personality), Color.White, 0.55f), ambientLight);
+
+            basicEffect.View = camera.View;
+            basicEffect.Projection = camera.Projection;
+            basicEffect.World = Matrix.Identity;
+
+            for (int i = 0; i < 3; i++)
+            {
+                float t = (i + 1) / 4f;
+                float fade = 1f - t;
+                Vector3 offset = -direction * (trailLength * t) + up * (0.15f + t * 0.25f) + side * ((i - 1) * 0.08f);
+                Color trailColor = new Color(trailBase.R, trailBase.G, trailBase.B, (byte)(140 * fade));
+                DrawEllipsoid(graphicsDevice, cat.Position + offset, new Vector3(0.12f, 0.08f, 0.12f) * (1f + fade * 0.35f), trailColor, 6, 4);
             }
         }
         

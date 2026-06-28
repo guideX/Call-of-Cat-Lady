@@ -16,9 +16,10 @@ Welcome to "Call of Cat Lady" - a unique 3D first-person game where you play as 
 ## Controls
 - **W/A/S/D** - Move forward/left/backward/right
 - **Mouse** - Look around
-- **Space** - Move up
-- **Left Shift** - Move down
+- **Left Shift** - Sprint
 - **Left Mouse Button** - Shoot a cat (if you have any collected)
+- **Right Mouse Button / E** - Pick up a nearby cat
+- **F9** - Debug/test: place a dog in front of the player for manual hit checks
 - **ESC** - Exit game
 
 ## How to Play
@@ -26,8 +27,9 @@ Welcome to "Call of Cat Lady" - a unique 3D first-person game where you play as 
 2. Use WASD to walk around the neighborhood
 3. Walk close to orange cats to automatically collect them
 4. Your cat inventory will increase
-5. Aim with your mouse and click left mouse button to shoot cats!
-6. Watch your cats fly through the air with physics
+5. Aim with your mouse and click left mouse button to shoot cats
+6. If you need a fast verification target, press `F9` to place a dog in front of you
+7. Watch thrown cats, dog derez, and score changes in the HUD
 
 ## About Your 3D Models
 
@@ -127,6 +129,12 @@ MonoGame best supports:
 ### No cats visible?
 - Make sure you're walking around (WASD keys)
 - Cats spawn randomly around the neighborhood between X: -30 to 30, Z: -50 to 50
+
+### Manual verification checklist
+1. Collect 3 to 8 cats and make sure the follower pack stays behind or around the player
+2. Throw a cat and confirm the projectile trail makes it easy to track
+3. Press `F9` to reposition a dog in front of the player if you need a hit test target
+4. Hit the dog and verify the derez flash, one-time score increment, and HUD counts
 
 ### Camera not moving?
 - Make sure the game window has focus

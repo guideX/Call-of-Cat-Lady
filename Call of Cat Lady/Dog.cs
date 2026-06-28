@@ -72,6 +72,18 @@ namespace Call_of_Cat_Lady
             return IsVaporizing && VaporizeTimer >= VaporizeDuration;
         }
 
+        // Debug/test-only helper used to place a dog in front of the player for manual hit verification.
+        public void PlaceForTest(Vector3 position, float rotationY)
+        {
+            Position = ClampToGround(position);
+            RotationY = rotationY;
+            Velocity = Vector3.Zero;
+            IsVaporizing = false;
+            VaporizeTimer = 0f;
+            roamTimer = 0f;
+            SetNewRoamTarget();
+        }
+
         public float DistanceToPoint(Vector3 point)
         {
             return Vector3.Distance(Position, point);
