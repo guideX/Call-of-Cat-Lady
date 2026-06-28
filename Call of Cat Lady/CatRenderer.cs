@@ -19,7 +19,7 @@ namespace Call_of_Cat_Lady
         private const float LOD_HIGH_DISTANCE = 20f;
         private const float LOD_MEDIUM_DISTANCE = 50f;
         private const float LOD_LOW_DISTANCE = 300f;
-        private const float LoadedModelScale = 0.00055f;
+        private const float LoadedModelScale = 0.00035f;
         private const float ProceduralModelScale = 0.12f;
 
         // 3D Model support (MonoGame Model format - FBX)
@@ -32,6 +32,7 @@ namespace Call_of_Cat_Lady
         private Dictionary<Cat, AnimationPlayer> animationPlayers;
         private AnimationClip walkAnimation;
         private bool supportsAnimation = false;
+        private float drawOpacity = 1f;
 
         public CatRenderer(GraphicsDevice graphicsDevice)
         {
@@ -105,66 +106,76 @@ namespace Call_of_Cat_Lady
             // Animation is intentionally disabled for stability.
         }
         
-        public void DrawCat(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)
+        public void DrawCat(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight, float opacity = 1f)
         {
-            if (cat.State == CatState.Consumed)
-                return;
+            float previousOpacity = drawOpacity;
+            drawOpacity = MathHelper.Clamp(opacity, 0f, 1f);
 
-            float distanceToCamera = Vector3.Distance(camera.Position, cat.Position);
-            if (distanceToCamera > LOD_LOW_DISTANCE)
-                return;
-
-            // Keep loaded cats compact so follower packs stay readable near the camera.
-            float renderScale = useLoadedModel ? LoadedModelScale : cat.Scale * ProceduralModelScale;
-            if (cat.State == CatState.Thrown)
+            try
             {
-                renderScale *= 1.08f;
+                if (cat.State == CatState.Consumed)
+                    return;
+
+                float distanceToCamera = Vector3.Distance(camera.Position, cat.Position);
+                if (distanceToCamera > LOD_LOW_DISTANCE)
+                    return;
+
+                // Keep loaded cats compact so follower packs stay readable near the camera.
+                float renderScale = useLoadedModel ? LoadedModelScale : cat.Scale * ProceduralModelScale;
+                if (cat.State == CatState.Thrown)
+                {
+                    renderScale *= 1.02f;
+                }
+                
+                // Build world matrix - keep the model centered on the cat's current world position.
+                Matrix world;
+                if (useLoadedModel && catModel != null)
+                {
+                    Vector3 modelOffset = new Vector3(0f, -modelGroundOffset * renderScale, 0f);
+                    world = Matrix.CreateScale(renderScale) *
+                            Matrix.CreateRotationY(cat.RotationY) *
+                            Matrix.CreateTranslation(cat.Position + modelOffset);
+                }
+                else
+                {
+                    // For procedural cats: use the original scale factor
+                    world = Matrix.CreateScale(cat.Scale * ProceduralModelScale) *
+                            Matrix.CreateRotationX(cat.RotationX) *
+                            Matrix.CreateRotationY(cat.RotationY) *
+                            Matrix.CreateRotationZ(cat.RotationZ) *
+                            Matrix.CreateTranslation(cat.Position);
+                }
+
+                if (cat.State == CatState.Thrown)
+                {
+                    DrawProjectileTrail(graphicsDevice, camera, cat, ambientLight);
+                }
+
+                if (useLoadedModel && catModel != null)
+                {
+                    DrawMonoGameModel(graphicsDevice, camera, world, cat, ambientLight);
+                    return;
+                }
+
+                // Procedural rendering path
+                basicEffect.View = camera.View;
+                basicEffect.Projection = camera.Projection;
+                basicEffect.World = world;
+
+                Color mainColor = ApplyLighting(GetColorForPersonality(cat.Personality), ambientLight);
+                Color eyeColor = ApplyLighting(GetEyeColorForPersonality(cat.Personality), ambientLight);
+
+                if (distanceToCamera < LOD_HIGH_DISTANCE)
+                    DrawCatHighDetail(graphicsDevice, mainColor, eyeColor, ambientLight, cat);
+                else if (distanceToCamera < LOD_MEDIUM_DISTANCE)
+                    DrawCatMediumDetail(graphicsDevice, mainColor, eyeColor, ambientLight, cat);
+                else
+                    DrawCatLowDetail(graphicsDevice, mainColor, eyeColor);
             }
-            
-            // Build world matrix - keep the model centered on the cat's current world position.
-            Matrix world;
-            if (useLoadedModel && catModel != null)
+            finally
             {
-                Vector3 modelOffset = new Vector3(0f, -modelGroundOffset * renderScale, 0f);
-                world = Matrix.CreateScale(renderScale) *
-                        Matrix.CreateRotationY(cat.RotationY) *
-                        Matrix.CreateTranslation(cat.Position + modelOffset);
+                drawOpacity = previousOpacity;
             }
-            else
-            {
-                // For procedural cats: use the original scale factor
-                world = Matrix.CreateScale(cat.Scale * ProceduralModelScale) *
-                        Matrix.CreateRotationX(cat.RotationX) *
-                        Matrix.CreateRotationY(cat.RotationY) *
-                        Matrix.CreateRotationZ(cat.RotationZ) *
-                        Matrix.CreateTranslation(cat.Position);
-            }
-
-            if (cat.State == CatState.Thrown)
-            {
-                DrawProjectileTrail(graphicsDevice, camera, cat, ambientLight);
-            }
-
-            if (useLoadedModel && catModel != null)
-            {
-                DrawMonoGameModel(graphicsDevice, camera, world, cat, ambientLight);
-                return;
-            }
-
-            // Procedural rendering path
-            basicEffect.View = camera.View;
-            basicEffect.Projection = camera.Projection;
-            basicEffect.World = world;
-
-            Color mainColor = ApplyLighting(GetColorForPersonality(cat.Personality), ambientLight);
-            Color eyeColor = ApplyLighting(GetEyeColorForPersonality(cat.Personality), ambientLight);
-
-            if (distanceToCamera < LOD_HIGH_DISTANCE)
-                DrawCatHighDetail(graphicsDevice, mainColor, eyeColor, ambientLight, cat);
-            else if (distanceToCamera < LOD_MEDIUM_DISTANCE)
-                DrawCatMediumDetail(graphicsDevice, mainColor, eyeColor, ambientLight, cat);
-            else
-                DrawCatLowDetail(graphicsDevice, mainColor, eyeColor);
         }
 
         private void DrawMonoGameModel(GraphicsDevice graphicsDevice, Camera camera, Matrix world, 
@@ -189,6 +200,7 @@ namespace Call_of_Cat_Lady
                     
                     // Apply ambient light
                     effect.AmbientLightColor = ambientLight.ToVector3() * 0.5f; // Softer ambient
+                    effect.Alpha = drawOpacity;
                     
                     // Apply texture if available
                     if (catTexture != null)
@@ -201,11 +213,11 @@ namespace Call_of_Cat_Lady
                         Vector3 subtleTint = Vector3.Lerp(Vector3.One, tintColor.ToVector3(), 0.3f); // 30% tint
                         if (cat.State == CatState.Thrown)
                         {
-                            subtleTint = Vector3.Lerp(subtleTint, Vector3.One, 0.25f);
+                            subtleTint = Vector3.Lerp(subtleTint, Vector3.One, 0.1f);
                         }
                         effect.DiffuseColor = subtleTint;
                         effect.EmissiveColor = cat.State == CatState.Thrown
-                            ? Vector3.One * 0.06f
+                            ? Vector3.One * 0.025f
                             : tintColor.ToVector3() * 0.1f;
                     }
                     else
@@ -216,11 +228,11 @@ namespace Call_of_Cat_Lady
                         Vector3 diffuse = tintColor.ToVector3();
                         if (cat.State == CatState.Thrown)
                         {
-                            diffuse = Vector3.Lerp(diffuse, Vector3.One, 0.2f);
+                            diffuse = Vector3.Lerp(diffuse, Vector3.One, 0.08f);
                         }
                         effect.DiffuseColor = diffuse;
                         effect.EmissiveColor = cat.State == CatState.Thrown
-                            ? Vector3.One * 0.12f
+                            ? Vector3.One * 0.05f
                             : tintColor.ToVector3() * 0.2f; // Add slight glow
                     }
                     
@@ -252,8 +264,8 @@ namespace Call_of_Cat_Lady
                 side.Normalize();
             }
 
-            Vector3 up = Vector3.Up * 0.18f;
-            Color trailBase = ApplyLighting(Color.Lerp(GetColorForPersonality(cat.Personality), Color.White, 0.55f), ambientLight);
+            Vector3 up = Vector3.Up * 0.14f;
+            Color trailBase = ApplyLighting(Color.Lerp(GetColorForPersonality(cat.Personality), Color.White, 0.3f), ambientLight);
 
             basicEffect.View = camera.View;
             basicEffect.Projection = camera.Projection;
@@ -264,8 +276,8 @@ namespace Call_of_Cat_Lady
                 float t = (i + 1) / 4f;
                 float fade = 1f - t;
                 Vector3 offset = -direction * (trailLength * t) + up * (0.15f + t * 0.25f) + side * ((i - 1) * 0.08f);
-                Color trailColor = new Color(trailBase.R, trailBase.G, trailBase.B, (byte)(140 * fade));
-                DrawEllipsoid(graphicsDevice, cat.Position + offset, new Vector3(0.12f, 0.08f, 0.12f) * (1f + fade * 0.35f), trailColor, 6, 4);
+                Color trailColor = new Color(trailBase.R, trailBase.G, trailBase.B, (byte)(110 * fade));
+                DrawEllipsoid(graphicsDevice, cat.Position + offset, new Vector3(0.11f, 0.07f, 0.11f) * (1f + fade * 0.25f), trailColor, 6, 4);
             }
         }
         
@@ -387,6 +399,14 @@ namespace Call_of_Cat_Lady
                 (baseColor.B * ambientLight.B) / 255,
                 baseColor.A
             );
+        }
+
+        private Color ApplyOpacity(Color color)
+        {
+            if (drawOpacity >= 0.999f)
+                return color;
+
+            return new Color(color.R, color.G, color.B, (byte)(color.A * drawOpacity));
         }
 
         private void DrawCatBodyWithFur(GraphicsDevice graphicsDevice, Color mainColor, Color ambientLight)
@@ -713,7 +733,7 @@ namespace Call_of_Cat_Lady
                         radius.Z * sinPhi * sinTheta
                     );
 
-                    vertices[vertIndex++] = new VertexPositionColor(center + position, color);
+                    vertices[vertIndex++] = new VertexPositionColor(center + position, ApplyOpacity(color));
                 }
             }
 
@@ -765,10 +785,11 @@ namespace Call_of_Cat_Lady
                 int baseIndex = i * 4;
                 
                 // Side quad as two triangles
-                vertices[baseIndex] = new VertexPositionColor(center + new Vector3(x1, height / 2, z1), color);
-                vertices[baseIndex + 1] = new VertexPositionColor(center + new Vector3(x1, -height / 2, z1), color);
-                vertices[baseIndex + 2] = new VertexPositionColor(center + new Vector3(x2, -height / 2, z2), color);
-                vertices[baseIndex + 3] = new VertexPositionColor(center + new Vector3(x2, height / 2, z2), color);
+                Color drawColor = ApplyOpacity(color);
+                vertices[baseIndex] = new VertexPositionColor(center + new Vector3(x1, height / 2, z1), drawColor);
+                vertices[baseIndex + 1] = new VertexPositionColor(center + new Vector3(x1, -height / 2, z1), drawColor);
+                vertices[baseIndex + 2] = new VertexPositionColor(center + new Vector3(x2, -height / 2, z2), drawColor);
+                vertices[baseIndex + 3] = new VertexPositionColor(center + new Vector3(x2, height / 2, z2), drawColor);
             }
 
             foreach (var pass in basicEffect.CurrentTechnique.Passes)
@@ -827,9 +848,10 @@ namespace Call_of_Cat_Lady
                 int baseIndex = i * 3;
                 
                 // Triangle from base to tip
-                vertices[baseIndex] = new VertexPositionColor(baseCenter + new Vector3(x1, 0, z1), color);
-                vertices[baseIndex + 1] = new VertexPositionColor(baseCenter + new Vector3(x2, 0, z2), color);
-                vertices[baseIndex + 2] = new VertexPositionColor(tip, color);
+                Color drawColor = ApplyOpacity(color);
+                vertices[baseIndex] = new VertexPositionColor(baseCenter + new Vector3(x1, 0, z1), drawColor);
+                vertices[baseIndex + 1] = new VertexPositionColor(baseCenter + new Vector3(x2, 0, z2), drawColor);
+                vertices[baseIndex + 2] = new VertexPositionColor(tip, drawColor);
             }
 
             foreach (var pass in basicEffect.CurrentTechnique.Passes)

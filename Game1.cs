@@ -17,6 +17,8 @@ namespace Call_of_Cat_Lady
         private const float CatThrowRange = 1.5f;
         private const float DebugDogDistance = 8f;
         private const float StatusMessageDuration = 1.25f;
+        private const float FollowerOccludedOpacity = 0.35f;
+        private const float FollowerOcclusionRadius = 1.15f;
         private const int InitialCatCount = 24;
         private const int InitialDogCount = 6;
 
@@ -345,7 +347,8 @@ namespace Call_of_Cat_Lady
 
             foreach (var cat in _cats)
             {
-                _catRenderer.DrawCat(GraphicsDevice, _camera, cat, ambientLight);
+                float opacity = GetCatRenderOpacity(cat);
+                _catRenderer.DrawCat(GraphicsDevice, _camera, cat, ambientLight, opacity);
             }
 
             foreach (var dog in _dogs)
@@ -367,29 +370,44 @@ namespace Call_of_Cat_Lady
 
             if (_hudFont != null)
             {
-                var counts = GetCatStateCounts();
-                var dogCounts = GetDogStateCounts();
-
                 int x = 10;
                 int y = 10;
                 int lineHeight = 20;
 
-                DrawHudLine($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1}", x, y, Color.White); y += lineHeight;
-                DrawHudLine("Camera mode: Third-person follow", x, y, Color.LightBlue); y += lineHeight;
-                DrawHudLine($"Cats - Wandering: {counts.Wandering} | Following: {counts.Following} | Thrown: {counts.Thrown} | Recovering: {counts.Recovering}", x, y, Color.White); y += lineHeight;
-                DrawHudLine($"Dogs - Active: {dogCounts.Active} | Derezzing: {dogCounts.Derezzing}", x, y, Color.Orange); y += lineHeight;
-                DrawHudLine($"Inventory/Followers: {_catInventory.CatCount} | Score: {_score}", x, y, Color.Yellow); y += lineHeight;
-                string playerRenderer = _player.HasModel ? "Real" : "Fallback";
-                DrawHudLine($"Player model mode: {playerRenderer}", x, y, Color.LightGreen); y += lineHeight;
-                DrawHudLine($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", x, y, Color.White); y += lineHeight;
+                var counts = GetCatStateCounts();
+                var dogCounts = GetDogStateCounts();
+                var hudLines = new List<(string Text, Color Color)>
+                {
+                    ($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1}", Color.White),
+                    ("Camera mode: Third-person follow", Color.LightBlue),
+                    ($"Cats - Wandering: {counts.Wandering} | Following: {counts.Following} | Thrown: {counts.Thrown} | Recovering: {counts.Recovering}", Color.White),
+                    ($"Dogs - Active: {dogCounts.Active} | Derezzing: {dogCounts.Derezzing}", Color.Orange),
+                    ($"Inventory/Followers: {_catInventory.CatCount} | Score: {_score}", Color.Yellow),
+                    ($"Player model mode: {(_player.HasModel ? "Real" : "Fallback")}", Color.LightGreen),
+                    ($"Aim: {_camera.Yaw:F2} yaw / {_camera.Pitch:F2} pitch", Color.White)
+                };
+
                 if (!string.IsNullOrEmpty(_statusMessage))
                 {
-                    DrawHudLine(_statusMessage, x, y, Color.OrangeRed);
+                    hudLines.Add((_statusMessage, Color.OrangeRed));
+                }
+
+                Rectangle hudPanel = BuildHudPanel(x, y, lineHeight, hudLines, 10);
+                DrawHudPanel(hudPanel, new Color(0, 0, 0, 170));
+
+                foreach (var line in hudLines)
+                {
+                    DrawHudLine(line.Text, x, y, line.Color);
                     y += lineHeight;
                 }
 
-                DrawHudLine("WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 test dog | ESC quit",
-                    10, GraphicsDevice.Viewport.Height - 28, Color.White);
+                string helpText = "WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 test dog | ESC quit";
+                int helpX = 10;
+                int helpY = GraphicsDevice.Viewport.Height - 28;
+                Vector2 helpSize = _hudFont.MeasureString(helpText);
+                Rectangle helpPanel = new Rectangle(helpX - 10, helpY - 6, (int)Math.Ceiling(helpSize.X) + 20, (int)Math.Ceiling(helpSize.Y) + 12);
+                DrawHudPanel(helpPanel, new Color(0, 0, 0, 170));
+                DrawHudLine(helpText, helpX, helpY, Color.White);
             }
 
             _spriteBatch.End();
@@ -412,7 +430,27 @@ namespace Call_of_Cat_Lady
 
         private void DrawHudLine(string text, int x, int y, Color color)
         {
+            Vector2 shadowOffset = new Vector2(1f, 1f);
+            _spriteBatch.DrawString(_hudFont, text, new Vector2(x, y) + shadowOffset, new Color(0, 0, 0, 210));
             _spriteBatch.DrawString(_hudFont, text, new Vector2(x, y), color);
+        }
+
+        private Rectangle BuildHudPanel(int x, int y, int lineHeight, List<(string Text, Color Color)> lines, int padding)
+        {
+            int width = 0;
+            foreach (var line in lines)
+            {
+                Vector2 measured = _hudFont.MeasureString(line.Text);
+                width = Math.Max(width, (int)Math.Ceiling(measured.X));
+            }
+
+            int height = lines.Count * lineHeight;
+            return new Rectangle(x - padding, y - padding, width + padding * 2, height + padding * 2);
+        }
+
+        private void DrawHudPanel(Rectangle rect, Color color)
+        {
+            _spriteBatch.Draw(_crosshairTexture, rect, color);
         }
 
         private (int Wandering, int Following, int Thrown, int Recovering) GetCatStateCounts()
@@ -490,12 +528,79 @@ namespace Call_of_Cat_Lady
             int tier = index / 2;
             bool leftSide = index % 2 == 0;
 
-            float backOffset = 2.35f + tier * 1.15f;
-            float sideOffset = (leftSide ? -1f : 1f) * (1.0f + tier * 0.75f);
+            float backOffset;
+            float sideOffset;
+
+            switch (index)
+            {
+                case 0:
+                    backOffset = 2.0f;
+                    sideOffset = -1.9f;
+                    break;
+                case 1:
+                    backOffset = 2.0f;
+                    sideOffset = 1.9f;
+                    break;
+                case 2:
+                    backOffset = 2.9f;
+                    sideOffset = -3.1f;
+                    break;
+                case 3:
+                    backOffset = 2.9f;
+                    sideOffset = 3.1f;
+                    break;
+                case 4:
+                    backOffset = 3.8f;
+                    sideOffset = -4.2f;
+                    break;
+                case 5:
+                    backOffset = 3.8f;
+                    sideOffset = 4.2f;
+                    break;
+                case 6:
+                    backOffset = 4.9f;
+                    sideOffset = -2.7f;
+                    break;
+                case 7:
+                    backOffset = 4.9f;
+                    sideOffset = 2.7f;
+                    break;
+                default:
+                    backOffset = 5.0f + tier * 1.05f;
+                    sideOffset = (leftSide ? -1f : 1f) * (2.8f + tier * 0.95f);
+                    break;
+            }
 
             Vector3 target = playerPosition - forward * backOffset + right * sideOffset;
             target.Y = GroundY;
             return ClampToWorld(target);
+        }
+
+        private float GetCatRenderOpacity(Cat cat)
+        {
+            if (cat.State != CatState.FollowingPlayer)
+                return 1f;
+
+            Vector2 camera = new Vector2(_camera.Position.X, _camera.Position.Z);
+            Vector2 player = new Vector2(_player.Position.X, _player.Position.Z);
+            Vector2 catPos = new Vector2(cat.Position.X, cat.Position.Z);
+            Vector2 cameraToPlayer = player - camera;
+
+            float segmentLengthSquared = cameraToPlayer.LengthSquared();
+            if (segmentLengthSquared < 0.0001f)
+                return 1f;
+
+            float t = Vector2.Dot(catPos - camera, cameraToPlayer) / segmentLengthSquared;
+            if (t <= 0.05f || t >= 0.98f)
+                return 1f;
+
+            Vector2 closestPoint = camera + cameraToPlayer * t;
+            float distance = Vector2.Distance(catPos, closestPoint);
+            if (distance >= FollowerOcclusionRadius)
+                return 1f;
+
+            float blend = MathHelper.Clamp(distance / FollowerOcclusionRadius, 0f, 1f);
+            return MathHelper.Lerp(FollowerOccludedOpacity, 1f, blend);
         }
 
         private void PlaceDebugDogInFrontOfPlayer()
