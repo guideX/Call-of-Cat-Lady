@@ -46,6 +46,9 @@ namespace Call_of_Cat_Lady
         public float RotationY { get; private set; }
         public float RotationX { get; private set; }
         public float RotationZ { get; private set; }
+        public float HorizontalSpeed { get; private set; }
+        public bool FacingLeft { get; private set; }
+        public float WalkAnimationDistance { get; private set; }
         public CatPersonality Personality { get; private set; }
         public CatState State { get; private set; }
         public int FollowSlotIndex { get; private set; } = -1;
@@ -70,6 +73,9 @@ namespace Call_of_Cat_Lady
             RotationY = (float)(this.random.NextDouble() * MathHelper.TwoPi);
             RotationX = 0f;
             RotationZ = 0f;
+            HorizontalSpeed = 0f;
+            FacingLeft = false;
+            WalkAnimationDistance = 0f;
             State = CatState.Wandering;
 
             Array personalities = Enum.GetValues(typeof(CatPersonality));
@@ -114,6 +120,10 @@ namespace Call_of_Cat_Lady
             RotationY = (float)Math.Atan2(normalizedDirection.X, normalizedDirection.Z);
             RotationX = 0f;
             RotationZ = 0f;
+            if (Math.Abs(normalizedDirection.X) > 0.001f)
+            {
+                FacingLeft = normalizedDirection.X < 0f;
+            }
         }
 
         public void StartRecovering()
@@ -279,13 +289,19 @@ namespace Call_of_Cat_Lady
         {
             Vector3 flatMovement = movement;
             flatMovement.Y = 0f;
-            float speed = flatMovement.Length() / Math.Max(deltaTime, 0.0001f);
+            float horizontalDistance = flatMovement.Length();
+            HorizontalSpeed = horizontalDistance / Math.Max(deltaTime, 0.0001f);
 
             if (flatMovement.LengthSquared() > 0.0001f)
             {
                 float targetYaw = (float)Math.Atan2(flatMovement.X, flatMovement.Z);
                 float turnSpeed = State == CatState.Wandering ? WanderTurnSpeed : FollowTurnSpeed;
                 RotationY = ApproachAngle(RotationY, targetYaw, deltaTime * turnSpeed);
+
+                if (Math.Abs(flatMovement.X) > 0.0001f)
+                {
+                    FacingLeft = flatMovement.X < 0f;
+                }
             }
 
             if (State == CatState.Thrown)
@@ -299,7 +315,16 @@ namespace Call_of_Cat_Lady
                 RotationZ = MathHelper.Lerp(RotationZ, 0f, deltaTime * 8f);
             }
 
-            UpdateLegAnimation(deltaTime, speed);
+            if (State != CatState.Thrown && horizontalDistance > 0.02f)
+            {
+                WalkAnimationDistance += horizontalDistance;
+                if (WalkAnimationDistance > 1000f)
+                {
+                    WalkAnimationDistance %= 1000f;
+                }
+            }
+
+            UpdateLegAnimation(deltaTime, HorizontalSpeed);
         }
 
         private void UpdateLegAnimation(float deltaTime, float speed)

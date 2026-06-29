@@ -8,12 +8,13 @@ namespace Call_of_Cat_Lady
     /// <summary>
     /// Renders cats using either loaded 3D models or procedural generation
     /// Optimized with LOD (Level of Detail) system for performance
-    /// Now supports skeletal animation!
+    /// Also supports optional 4-frame walk sprite sheets with a static fallback.
     /// </summary>
     public class CatRenderer
     {
         private BasicEffect basicEffect;
         private BasicEffect modelEffect;
+        private BasicEffect spriteEffect;
         
         // LOD distance thresholds
         private const float LOD_HIGH_DISTANCE = 20f;
@@ -21,12 +22,22 @@ namespace Call_of_Cat_Lady
         private const float LOD_LOW_DISTANCE = 300f;
         private const float LoadedModelScale = 0.00035f;
         private const float ProceduralModelScale = 0.12f;
+        public const string CatWalkSpriteAssetPath = "Images/cat_walk_right";
+        private const int CatWalkFrameCount = 4;
+        private const int CatWalkFrameWidth = 128;
+        private const int CatWalkFrameHeight = 128;
+        private const float CatWalkAnimationDistancePerFrame = 0.42f;
+        private const float CatWalkSpriteWorldHeight = 1.85f;
 
         // 3D Model support (MonoGame Model format - FBX)
         private Model catModel;
         private Texture2D catTexture;
         private bool useLoadedModel = false;
         private float modelGroundOffset = 0f; // lowest Y of model (unrotated) used for vertical correction
+
+        // Optional sprite-sheet support
+        private Texture2D catWalkTexture;
+        private bool useCatWalkSprite = false;
         
         // Animation support
         private Dictionary<Cat, AnimationPlayer> animationPlayers;
@@ -48,6 +59,13 @@ namespace Call_of_Cat_Lady
                 LightingEnabled = true
             };
             modelEffect.EnableDefaultLighting();
+
+            spriteEffect = new BasicEffect(graphicsDevice)
+            {
+                TextureEnabled = true,
+                VertexColorEnabled = true,
+                LightingEnabled = false
+            };
             
             animationPlayers = new Dictionary<Cat, AnimationPlayer>();
         }
@@ -101,6 +119,27 @@ namespace Call_of_Cat_Lady
             }
         }
 
+        public void LoadCatWalkSprite(Texture2D texture)
+        {
+            catWalkTexture = texture;
+            useCatWalkSprite = texture != null;
+
+            if (useCatWalkSprite)
+            {
+                int expectedWidth = CatWalkFrameWidth * CatWalkFrameCount;
+                if (texture.Width < expectedWidth || texture.Height < CatWalkFrameHeight)
+                {
+                    Console.WriteLine($"Cat walk sprite sheet is too small ({texture.Width}x{texture.Height}). Expected at least {expectedWidth}x{CatWalkFrameHeight}. Falling back to static cat rendering.");
+                    catWalkTexture = null;
+                    useCatWalkSprite = false;
+                }
+                else
+                {
+                    Console.WriteLine($"🐾 Using cat walk sprite sheet ({texture.Width}x{texture.Height})");
+                }
+            }
+        }
+
         public void CleanupAnimationPlayers(List<Cat> activeCats)
         {
             // Animation is intentionally disabled for stability.
@@ -119,6 +158,12 @@ namespace Call_of_Cat_Lady
                 float distanceToCamera = Vector3.Distance(camera.Position, cat.Position);
                 if (distanceToCamera > LOD_LOW_DISTANCE)
                     return;
+
+                if (useCatWalkSprite && catWalkTexture != null && cat.State != CatState.Thrown)
+                {
+                    if (DrawCatWalkSprite(graphicsDevice, camera, cat, ambientLight))
+                        return;
+                }
 
                 // Keep loaded cats compact so follower packs stay readable near the camera.
                 float renderScale = useLoadedModel ? LoadedModelScale : cat.Scale * ProceduralModelScale;
@@ -243,6 +288,89 @@ namespace Call_of_Cat_Lady
                 
                 mesh.Draw();
             }
+        }
+
+        private bool DrawCatWalkSprite(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)
+        {
+            if (catWalkTexture == null || cat.State == CatState.Thrown || cat.State == CatState.Consumed)
+            {
+                return false;
+            }
+
+            int frameWidth = catWalkTexture.Width / CatWalkFrameCount;
+            if (frameWidth <= 0 || catWalkTexture.Height <= 0)
+            {
+                return false;
+            }
+
+            int frameIndex = 0;
+            if (cat.HorizontalSpeed > 0.08f)
+            {
+                frameIndex = (int)Math.Floor(cat.WalkAnimationDistance / CatWalkAnimationDistancePerFrame) % CatWalkFrameCount;
+                if (frameIndex < 0)
+                {
+                    frameIndex += CatWalkFrameCount;
+                }
+            }
+
+            float worldHeight = CatWalkSpriteWorldHeight * cat.Scale;
+            float worldWidth = worldHeight * (frameWidth / (float)CatWalkFrameHeight);
+
+            Vector3 cameraRight = camera.GetRightDirection();
+            Vector3 widthOffset = cameraRight * (worldWidth * 0.5f);
+            Vector3 heightOffset = Vector3.Up * worldHeight;
+
+            Vector3 topCenter = cat.Position + heightOffset;
+            Vector3 bottomCenter = cat.Position;
+
+            Vector3 topLeft = topCenter - widthOffset;
+            Vector3 topRight = topCenter + widthOffset;
+            Vector3 bottomLeft = bottomCenter - widthOffset;
+            Vector3 bottomRight = bottomCenter + widthOffset;
+
+            float u0 = frameIndex / (float)CatWalkFrameCount;
+            float u1 = (frameIndex + 1) / (float)CatWalkFrameCount;
+            if (cat.FacingLeft)
+            {
+                float temp = u0;
+                u0 = u1;
+                u1 = temp;
+            }
+
+            Color tint = ApplyLighting(Color.Lerp(Color.White, GetColorForPersonality(cat.Personality), 0.25f), ambientLight);
+            tint = ApplyOpacity(tint);
+
+            spriteEffect.View = camera.View;
+            spriteEffect.Projection = camera.Projection;
+            spriteEffect.World = Matrix.Identity;
+            spriteEffect.Texture = catWalkTexture;
+            spriteEffect.Alpha = tint.A / 255f;
+            spriteEffect.DiffuseColor = tint.ToVector3();
+
+            VertexPositionColorTexture[] vertices =
+            {
+                new VertexPositionColorTexture(topLeft, tint, new Vector2(u0, 0f)),
+                new VertexPositionColorTexture(topRight, tint, new Vector2(u1, 0f)),
+                new VertexPositionColorTexture(bottomLeft, tint, new Vector2(u0, 1f)),
+                new VertexPositionColorTexture(bottomRight, tint, new Vector2(u1, 1f))
+            };
+
+            short[] indices =
+            {
+                0, 1, 2,
+                1, 3, 2
+            };
+
+            foreach (var pass in spriteEffect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                graphicsDevice.DrawUserIndexedPrimitives(
+                    PrimitiveType.TriangleList,
+                    vertices, 0, vertices.Length,
+                    indices, 0, 2);
+            }
+
+            return true;
         }
 
         private void DrawProjectileTrail(GraphicsDevice graphicsDevice, Camera camera, Cat cat, Color ambientLight)

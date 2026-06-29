@@ -5,6 +5,7 @@ Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Siz
 "D:/dev/CallOfCatLady/Content/Images/brick2.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick2.xnb","TextureProcessor","Texture2DContent",81474,1439585,0.1835317
 "D:/dev/CallOfCatLady/Content/Images/brick3.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick3.xnb","TextureProcessor","Texture2DContent",71680,2889065,0.3821756
 "D:/dev/CallOfCatLady/Content/Images/brick4.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/brick4.xnb","TextureProcessor","Texture2DContent",435086,1612313,0.1875786
+"D:/dev/CallOfCatLady/Content/Images/cat_walk_right.png","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/cat_walk_right.xnb","TextureProcessor","Texture2DContent",6765,349653,0.170227
 "D:/dev/CallOfCatLady/Content/Images/grass.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/grass.xnb","TextureProcessor","Texture2DContent",81470,1228773,0.3129611
 "D:/dev/CallOfCatLady/Content/Images/grass2.jpg","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Images/grass2.xnb","TextureProcessor","Texture2DContent",146018,1244073,0.2005106
 "D:/dev/CallOfCatLady/Content/Models/cat_new.fbx","D:/dev/CallOfCatLady/Content/bin/Windows/Content/Models/cat_new.xnb","ModelProcessor","ModelContent",941520,387664,19.784405

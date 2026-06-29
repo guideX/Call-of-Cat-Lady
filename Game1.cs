@@ -148,6 +148,7 @@ namespace Call_of_Cat_Lady
 
             Model catModel = null;
             Texture2D catTexture = null;
+            Texture2D catWalkSprite = null;
 
             try
             {
@@ -168,6 +169,17 @@ namespace Call_of_Cat_Lady
             }
 
             _catRenderer.LoadCatModel(catModel, catTexture);
+
+            try
+            {
+                catWalkSprite = Content.Load<Texture2D>(CatRenderer.CatWalkSpriteAssetPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Could not load cat walk sprite sheet: {ex.Message}");
+            }
+
+            _catRenderer.LoadCatWalkSprite(catWalkSprite);
 
             Model playerModel = null;
             try

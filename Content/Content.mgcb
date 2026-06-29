@@ -146,6 +146,18 @@
 /processorParam:TextureFormat=Color
 /build:Models/cat_texture_new.png
 
+#begin Images/cat_walk_right.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Images/cat_walk_right.png
+
 #begin Models/cat_walk.fbx
 /importer:FbxImporter
 /processor:ModelProcessor

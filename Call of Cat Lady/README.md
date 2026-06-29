@@ -42,6 +42,16 @@ The game currently uses **procedurally generated 3D models** (made from cubes/pr
 - **Lady/Player**: First-person view (no visible player model needed)
 - **Environment**: Houses, roads, and grass
 
+### Cat Walk Sprite Sheet
+If you want visible 2D walk animation for cats, the game will also look for an optional horizontal sprite sheet named:
+- **Logical content name:** `Images/cat_walk_right`
+- **Suggested source file:** `Content/Images/cat_walk_right.png`
+- **Frames:** 4
+- **Layout:** one row, equal-sized frames, walking right, side view, transparent background
+- **Expected frame size constant in code:** `128x128`
+
+When the sprite sheet is present, moving cats use the walk frames and stationary cats hold the first frame as a static idle pose. If the sheet is missing, the game keeps the current static cat rendering and still runs normally.
+
 ### Using Your Custom 3D Models
 
 #### Model Locations
@@ -137,11 +147,14 @@ MonoGame best supports:
 1. Move around with WASD and verify the camera stays stable.
 2. Collect cats up to the 8-cat limit and confirm the HUD reads `Cats: current / max`.
 3. Try to collect one more cat and verify it does not break follower slots.
-4. Throw a cat and confirm the trail is visible and readable.
-5. Press `F9` to place a debug dog in front of the player for a repeatable hit test.
-6. Throw a cat into the dog and verify the derez flash, one-shot score update, and dogs-derezzed count.
-7. Wait for the 5-minute day to finish and confirm the end-of-day overlay appears with final score, dogs derezzed, cats collected, and cats thrown.
-8. Press `R` and confirm a fresh round starts cleanly.
+4. If `Images/cat_walk_right` is present, walk toward and away from cats and confirm the walk frames change only while they are moving.
+5. Verify stationary cats do not rapidly cycle through frames.
+6. Check that left-moving cats face left, either by sprite flipping or separate left-facing art.
+7. Throw a cat and confirm the trail is visible and readable.
+8. Press `F9` to place a debug dog in front of the player for a repeatable hit test.
+9. Throw a cat into the dog and verify the derez flash, one-shot score update, and dogs-derezzed count.
+10. Wait for the day to finish and confirm the end-of-day overlay appears with final score, dogs derezzed, cats collected, and cats thrown.
+11. Press `R` and confirm a fresh round starts cleanly.
 
 ### Camera not moving?
 - Make sure the game window has focus
