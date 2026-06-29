@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+ï»¿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
@@ -25,6 +25,7 @@ namespace Call_of_Cat_Lady
         private List<VertexPositionColor[]> fences;
         private List<VertexPositionColor[]> streetLights;
         private List<VertexPositionColor[]> landmarks;
+        private List<CollisionBox> collisionBoxes;
         private Texture2D grassTexture;
         private Texture2D grass2Texture;  // NEW: Alternate grass for park areas
         private Texture2D[] brickTextures;  // NEW: 4 different brick textures for buildings
@@ -62,6 +63,7 @@ namespace Call_of_Cat_Lady
             fences = new List<VertexPositionColor[]>();
             streetLights = new List<VertexPositionColor[]>();
             landmarks = new List<VertexPositionColor[]>();
+            collisionBoxes = new List<CollisionBox>();
             brickTextures = new Texture2D[4];
             
             GenerateLargeNeighborhood();
@@ -186,6 +188,13 @@ namespace Call_of_Cat_Lady
                 DoorColor = GetRandomDoorColor(random),
                 Style = (BuildingStyle)random.Next(0, 3)
             });
+
+            collisionBoxes.Add(new CollisionBox(
+                $"building_{buildings.Count:00}",
+                position.X,
+                position.Z,
+                size.X + 0.5f,
+                size.Z + 0.5f));
         }
 
         private Color GetRandomHouseColor(Random random)
@@ -537,6 +546,7 @@ namespace Call_of_Cat_Lady
         {
             Color fenceColor = new Color(240, 240, 240);
             Random random = new Random(42);
+            int fenceIndex = 1;
             
             foreach (var building in buildings)
             {
@@ -557,8 +567,15 @@ namespace Call_of_Cat_Lady
                     {
                         AddFencePost(fenceVerts, new Vector3(x, fenceY, frontZ), picketWidth, fenceHeight, fenceColor);
                     }
-                    
+
                     fences.Add(fenceVerts.ToArray());
+                    collisionBoxes.Add(new CollisionBox(
+                        $"fence_{fenceIndex:00}",
+                        building.Position.X,
+                        frontZ,
+                        building.Size.X + 2.0f,
+                        0.45f));
+                    fenceIndex++;
                 }
             }
         }
@@ -654,13 +671,17 @@ namespace Call_of_Cat_Lady
         {
             // Central fountain/monument
             landmarks.Add(CreateFountain(new Vector3(0, 0, -200), new Color(180, 180, 200)));
+            collisionBoxes.Add(new CollisionBox("fountain", 0f, -200f, 9f, 9f));
             
             // Playground
             landmarks.Add(CreatePlayground(new Vector3(-110, 0, 0)));
+            collisionBoxes.Add(new CollisionBox("playground", -108.5f, 0f, 4.5f, 3.5f));
             
             // Small park bench
             landmarks.Add(CreateBench(new Vector3(-100, 0, 20), new Color(120, 80, 60)));
             landmarks.Add(CreateBench(new Vector3(-100, 0, -20), new Color(120, 80, 60)));
+            collisionBoxes.Add(new CollisionBox("bench_north", -99f, 20f, 2.4f, 1.0f));
+            collisionBoxes.Add(new CollisionBox("bench_south", -99f, -20f, 2.4f, 1.0f));
         }
 
         private VertexPositionColor[] CreateFountain(Vector3 position, Color color)
@@ -873,6 +894,8 @@ namespace Call_of_Cat_Lady
             }
         }
 
+        public IReadOnlyList<CollisionBox> CollisionBoxes => collisionBoxes;
+
         private void DrawSimpleBuilding(GraphicsDevice graphicsDevice, Building building)
         {
             // Just draw main building box and roof - no windows or details
@@ -906,14 +929,14 @@ namespace Call_of_Cat_Lady
             // Trunk with fewer sides (6 instead of 12)
             DrawCylinder(graphicsDevice, tree.Position, tree.TrunkRadius, tree.Height * 0.6f, trunkColor, 6);
             
-            // Single canopy sphere with lower detail (8×6 instead of 16×12)
+            // Single canopy sphere with lower detail (8Ã—6 instead of 16Ã—12)
             Vector3 canopyPos = tree.Position + new Vector3(0, tree.Height * 0.5f, 0);
             DrawSphere(graphicsDevice, canopyPos, tree.CanopyRadius, canopyColor, 8, 6);
         }
 
         private void DrawVerySimpleTree(GraphicsDevice graphicsDevice, Tree tree)
         {
-            // Very simple tree - minimal geometry (4×4 resolution)
+            // Very simple tree - minimal geometry (4Ã—4 resolution)
             Color canopyColor = new Color(60, 140, 60);
             
             // Just one low-res sphere at trunk top
@@ -1334,3 +1357,4 @@ namespace Call_of_Cat_Lady
         }
     }
 }
+

@@ -12,6 +12,7 @@ Welcome to "Call of Cat Lady" - a simple 3D arcade round where you play as a cat
 ? **Cat Throwing Mechanics** - Launch collected cats with left mouse button
 ? **Dog Pressure** - Dogs roam and will drift toward the player when nearby
 ? **Physics** - Cats fly through the air with gravity
+? **First-Pass Neighborhood Collision** - Solid buildings, walls, and fences block the player and thrown cats
 ? **Crosshair** - Aim your cat shots!
 
 ## Controls
@@ -21,6 +22,7 @@ Welcome to "Call of Cat Lady" - a simple 3D arcade round where you play as a cat
 - **Left Mouse Button** - Shoot a cat (if you have any collected)
 - **Right Mouse Button / E** - Pick up a nearby cat
 - **F9** - Debug/test: place a dog in front of the player for manual hit checks
+- **F10** - Toggle collision debug overlay
 - **R** - Restart the current round
 - **ESC** - Exit game
 
@@ -31,8 +33,11 @@ Welcome to "Call of Cat Lady" - a simple 3D arcade round where you play as a cat
 4. Your carry count should stay capped at 8 cats
 5. Aim with your mouse and click left mouse button to throw cats at dogs
 6. If you need a fast verification target, press `F9` to place a dog in front of you
-7. Let the day timer run down to confirm the end-of-day overlay appears
-8. Press `R` to restart and confirm the round resets cleanly
+7. Walk into a building or fence and confirm the player slides or stops instead of clipping through
+8. Throw a cat at a wall/building and confirm it bonks instead of passing through
+9. Press `F10` to toggle the collision overlay and inspect the box layout
+10. Let the day timer run down to confirm the end-of-day overlay appears
+11. Press `R` to restart and confirm the round resets cleanly
 
 ## About Your 3D Models
 
@@ -153,8 +158,12 @@ MonoGame best supports:
 7. Throw a cat and confirm the trail is visible and readable.
 8. Press `F9` to place a debug dog in front of the player for a repeatable hit test.
 9. Throw a cat into the dog and verify the derez flash, one-shot score update, and dogs-derezzed count.
-10. Wait for the day to finish and confirm the end-of-day overlay appears with final score, dogs derezzed, cats collected, and cats thrown.
-11. Press `R` and confirm a fresh round starts cleanly.
+10. Walk into obvious buildings, walls, and fences and verify the player cannot pass through them.
+11. Toggle `F10` and confirm the collision boxes are visible in the world.
+12. Throw a cat at a wall/building and verify it bonks and stops instead of passing through.
+13. Throw a cat at a dog behind a wall and verify the wall blocks the hit.
+14. Wait for the day to finish and confirm the end-of-day overlay appears with final score, dogs derezzed, cats collected, and cats thrown.
+15. Press `R` and confirm a fresh round starts cleanly.
 
 ### Camera not moving?
 - Make sure the game window has focus

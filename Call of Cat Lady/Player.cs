@@ -11,6 +11,7 @@ namespace Call_of_Cat_Lady
         private const float MoveSpeed = 5.0f;
         private const float SprintSpeed = 8.0f;
         private const float ModelScale = 0.0125f;
+        private const float CollisionRadius = 0.6f;
 
         private readonly GraphicsDevice graphicsDevice;
         private readonly BasicEffect fallbackEffect;
@@ -40,7 +41,7 @@ namespace Call_of_Cat_Lady
             }
         }
 
-        public void Update(GameTime gameTime, Camera camera)
+        public void Update(GameTime gameTime, Camera camera, CollisionWorld collisionWorld)
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             KeyboardState keyboard = Keyboard.GetState();
@@ -65,7 +66,21 @@ namespace Call_of_Cat_Lady
             {
                 movement.Y = 0f;
                 movement.Normalize();
-                Position += movement * speed * deltaTime;
+                Vector3 desiredPosition = Position + movement * speed * deltaTime;
+
+                if (collisionWorld != null)
+                {
+                    Vector2 resolved = collisionWorld.ResolveCircleMovement(
+                        new Vector2(Position.X, Position.Z),
+                        new Vector2(desiredPosition.X, desiredPosition.Z),
+                        CollisionRadius);
+
+                    Position = new Vector3(resolved.X, Position.Y, resolved.Y);
+                }
+                else
+                {
+                    Position = desiredPosition;
+                }
             }
 
             RotationY = camera.Yaw + MathHelper.PiOver2;

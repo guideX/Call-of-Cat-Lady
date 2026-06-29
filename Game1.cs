@@ -15,6 +15,9 @@ namespace Call_of_Cat_Lady
         private const float WorldMaxZ = 185f;
         private const float PlayerHeadHeight = 1.35f;
         private const float CatThrowRange = 1.5f;
+        private const float PlayerCollisionRadius = 0.6f;
+        private const float ThrownCatCollisionRadius = 0.45f;
+        private const Keys CollisionDebugToggleKey = Keys.F10;
         private const float DebugDogDistance = 8f;
         private const float StatusMessageDuration = 1.25f;
         private const float FollowerOccludedOpacity = 0.35f;
@@ -37,6 +40,7 @@ namespace Call_of_Cat_Lady
         private Model _playerModel;
         private DayNightCycle _dayNightCycle;
         private DogRenderer _dogRenderer;
+        private CollisionWorld _collisionWorld;
 
         private List<Cat> _cats;
         private List<Dog> _dogs;
@@ -45,6 +49,7 @@ namespace Call_of_Cat_Lady
         private int _catsThrown;
         private int _dogsDerezzed;
         private bool _roundComplete;
+        private bool _showCollisionDebug;
         private KeyboardState _previousKeyboardState;
         private string _statusMessage;
         private float _statusMessageTimer;
@@ -68,6 +73,8 @@ namespace Call_of_Cat_Lady
         {
             _camera = new Camera(GraphicsDevice, _playerStartPosition + new Vector3(0f, 4f, -10f));
             _environment = new Environment(GraphicsDevice);
+            _collisionWorld = new CollisionWorld(GraphicsDevice);
+            _collisionWorld.AddBoxes(_environment.CollisionBoxes);
             _catInventory = new CatInventory(MaxCarryCats);
             _catRenderer = new CatRenderer(GraphicsDevice);
             _dayNightCycle = new DayNightCycle(GraphicsDevice);
@@ -237,6 +244,12 @@ namespace Call_of_Cat_Lady
                 PlaceDebugDogInFrontOfPlayer();
             }
 
+            if (keyState.IsKeyDown(CollisionDebugToggleKey) && _previousKeyboardState.IsKeyUp(CollisionDebugToggleKey))
+            {
+                _showCollisionDebug = !_showCollisionDebug;
+                SetStatusMessage(_showCollisionDebug ? "Collision debug ON" : "Collision debug OFF", 1.0f);
+            }
+
             if (_statusMessageTimer > 0f)
             {
                 _statusMessageTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -250,7 +263,7 @@ namespace Call_of_Cat_Lady
             if (!_roundComplete)
             {
                 _camera.UpdateLook(gameTime, GraphicsDevice);
-                _player.Update(gameTime, _camera);
+                _player.Update(gameTime, _camera, _collisionWorld);
                 ClampPlayerToWorld();
                 _camera.UpdateFollow(_player.Position + Vector3.Up * PlayerHeadHeight);
 
@@ -268,7 +281,6 @@ namespace Call_of_Cat_Lady
                     UpdateCats(gameTime);
                     AssignFollowSlots();
                     UpdateDogs(gameTime);
-                    CheckCatDogCollisions();
                     RemoveConsumedCats();
                 }
             }
@@ -315,6 +327,8 @@ namespace Call_of_Cat_Lady
 
             foreach (var cat in _cats)
             {
+                Vector3 previousPosition = cat.Position;
+                CatState previousState = cat.State;
                 Vector3 followTarget = cat.Position;
 
                 if (cat.State == CatState.FollowingPlayer)
@@ -323,6 +337,12 @@ namespace Call_of_Cat_Lady
                 }
 
                 cat.Update(gameTime, _player.Position, followTarget);
+
+                if (previousState == CatState.Thrown)
+                {
+                    ResolveThrownCatCollisions(cat, previousPosition, cat.Position);
+                }
+
                 ClampCatToWorld(cat);
             }
         }
@@ -341,34 +361,142 @@ namespace Call_of_Cat_Lady
             }
         }
 
-        private void CheckCatDogCollisions()
+        private void ResolveThrownCatCollisions(Cat cat, Vector3 previousPosition, Vector3 currentPosition)
         {
-            foreach (var cat in _cats)
+            Vector2 pathStart = new Vector2(previousPosition.X, previousPosition.Z);
+            Vector2 pathEnd = new Vector2(currentPosition.X, currentPosition.Z);
+
+            CollisionBox hitBox = default;
+            Vector2 wallHitPoint = default;
+            float wallT = float.MaxValue;
+            bool wallHit = false;
+
+            if (_collisionWorld != null)
             {
-                if (cat.State != CatState.Thrown)
+                wallHit = _collisionWorld.TrySweepCircleAgainstBoxes(
+                    pathStart,
+                    pathEnd,
+                    ThrownCatCollisionRadius,
+                    out hitBox,
+                    out wallHitPoint,
+                    out wallT);
+            }
+
+            bool dogHit = TryFindThrownCatDogHit(pathStart, pathEnd, out Dog hitDog, out _, out float dogT);
+
+            if (!wallHit && !dogHit)
+                return;
+
+            if (wallHit && (!dogHit || wallT <= dogT))
+            {
+                cat.Position = new Vector3(wallHitPoint.X, GroundY, wallHitPoint.Y);
+                cat.StartRecovering();
+                SetStatusMessage("Cat bonked wall");
+                Console.WriteLine($"Cat bonked wall on {hitBox.Name}");
+                return;
+            }
+
+            if (hitDog != null)
+            {
+                if (hitDog.StartVaporize())
+                {
+                    _score += DogDerezScore;
+                    _dogsDerezzed++;
+                    SetStatusMessage("DOG DEREZZED +100");
+                    Console.WriteLine("DOG DEREZZED +100");
+                }
+
+                cat.Consume();
+            }
+        }
+
+        private bool TryFindThrownCatDogHit(Vector2 pathStart, Vector2 pathEnd, out Dog hitDog, out Vector2 hitPoint, out float hitT)
+        {
+            hitDog = null;
+            hitPoint = default;
+            hitT = float.MaxValue;
+
+            bool foundHit = false;
+
+            foreach (var dog in _dogs)
+            {
+                if (dog.IsVaporizing)
                     continue;
 
-                foreach (var dog in _dogs)
+                Vector2 dogCenter = new Vector2(dog.Position.X, dog.Position.Z);
+                if (TrySegmentCircleHit(pathStart, pathEnd, dogCenter, CatThrowRange, out float candidateT, out Vector2 candidatePoint))
                 {
-                    if (dog.IsVaporizing)
-                        continue;
-
-                    float distance = Vector3.Distance(cat.Position, dog.Position);
-                    if (distance <= CatThrowRange)
+                    if (candidateT < hitT)
                     {
-                        if (dog.StartVaporize())
-                        {
-                            _score += DogDerezScore;
-                            _dogsDerezzed++;
-                            SetStatusMessage("DOG DEREZZED +100");
-                            Console.WriteLine("DOG DEREZZED +100");
-                        }
-
-                        cat.Consume();
-                        break;
+                        hitT = candidateT;
+                        hitDog = dog;
+                        hitPoint = candidatePoint;
+                        foundHit = true;
                     }
                 }
             }
+
+            return foundHit;
+        }
+
+        private static bool TrySegmentCircleHit(Vector2 start, Vector2 end, Vector2 center, float radius, out float hitT, out Vector2 hitPoint)
+        {
+            if (Vector2.DistanceSquared(start, center) <= radius * radius)
+            {
+                hitT = 0f;
+                hitPoint = start;
+                return true;
+            }
+
+            Vector2 direction = end - start;
+            Vector2 offset = start - center;
+
+            float a = Vector2.Dot(direction, direction);
+            if (a < 0.000001f)
+            {
+                float distSq = Vector2.DistanceSquared(start, center);
+                if (distSq <= radius * radius)
+                {
+                    hitT = 0f;
+                    hitPoint = start;
+                    return true;
+                }
+
+                hitT = 0f;
+                hitPoint = default;
+                return false;
+            }
+
+            float b = 2f * Vector2.Dot(offset, direction);
+            float c = Vector2.Dot(offset, offset) - radius * radius;
+            float discriminant = b * b - 4f * a * c;
+            if (discriminant < 0f)
+            {
+                hitT = 0f;
+                hitPoint = default;
+                return false;
+            }
+
+            float sqrtDiscriminant = MathF.Sqrt(discriminant);
+            float t0 = (-b - sqrtDiscriminant) / (2f * a);
+            float t1 = (-b + sqrtDiscriminant) / (2f * a);
+
+            float candidateT = float.MaxValue;
+            if (t0 >= 0f && t0 <= 1f)
+                candidateT = t0;
+            else if (t1 >= 0f && t1 <= 1f)
+                candidateT = t1;
+
+            if (candidateT == float.MaxValue)
+            {
+                hitT = 0f;
+                hitPoint = default;
+                return false;
+            }
+
+            hitT = candidateT;
+            hitPoint = Vector2.Lerp(start, end, hitT);
+            return true;
         }
 
         private void RemoveConsumedCats()
@@ -445,6 +573,11 @@ namespace Call_of_Cat_Lady
             _dayNightCycle.Draw(GraphicsDevice, _camera);
             _environment.Draw(GraphicsDevice, _camera);
 
+            if (_showCollisionDebug)
+            {
+                _collisionWorld.DrawDebug(GraphicsDevice, _camera, new Color(0, 255, 140, 150));
+            }
+
             Color ambientLight = _dayNightCycle.AmbientLight;
 
             foreach (var cat in _cats)
@@ -491,6 +624,20 @@ namespace Call_of_Cat_Lady
                     ($"Player: {_player.Position.X:F1}, {_player.Position.Y:F1}, {_player.Position.Z:F1} | Aim: {_camera.Yaw:F2} / {_camera.Pitch:F2}", Color.White)
                 };
 
+                if (_showCollisionDebug)
+                {
+                    Vector2 playerPoint = new Vector2(_player.Position.X, _player.Position.Z);
+                    IReadOnlyList<CollisionBox> nearestBoxes = _collisionWorld.GetNearestBoxes(playerPoint, 5);
+                    hudLines.Add(($"Collision debug ON | boxes: {_collisionWorld.BoxCount} | player radius: {PlayerCollisionRadius:F2}", Color.LightGreen));
+
+                    foreach (CollisionBox box in nearestBoxes)
+                    {
+                        hudLines.Add((
+                            $"{box.Name} @ {box.CenterX:F1},{box.CenterZ:F1} size {box.Width:F1}x{box.Depth:F1}",
+                            Color.LightGreen));
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(_statusMessage))
                 {
                     hudLines.Add((_statusMessage, Color.OrangeRed));
@@ -505,7 +652,7 @@ namespace Call_of_Cat_Lady
                     y += lineHeight;
                 }
 
-                string helpText = "WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 debug dog | R restart | ESC quit";
+                string helpText = "WASD move | Mouse aim | Left click throw | Right click/E pickup | F9 debug dog | F10 collision debug | R restart | ESC quit";
                 int helpX = 10;
                 int helpY = GraphicsDevice.Viewport.Height - 28;
                 Vector2 helpSize = _hudFont.MeasureString(helpText);
